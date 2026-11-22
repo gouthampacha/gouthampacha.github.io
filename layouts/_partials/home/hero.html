@@ -1,0 +1,32 @@
+{{/* Custom hero homepage: profile + identity line + highlight cards + recent writing. */}}
+<article class="flex flex-col items-center justify-center text-center">
+  {{ partial "profile.html" (dict "align" "center") }}
+  <section class="prose dark:prose-invert">{{ .Content | emojify }}</section>
+  {{ with site.Data.highlights }}
+    <section class="gpr-highlights not-prose">
+      {{ range . }}
+        {{ $hl := . }}
+        <div class="gpr-hl">
+          {{ if .urls }}
+            <span class="gpr-hl-title">{{ .title }}</span>
+            <span class="gpr-hl-sub">
+              {{ range $i, $u := .urls }}{{ if $i }} · {{ end }}<a href="{{ $u.url }}" rel="noopener">{{ $u.label }}</a>{{ end }}
+            </span>
+          {{ else if .url }}
+            <a class="gpr-hl-title" href="{{ .url }}" rel="noopener">{{ .title }}</a>
+          {{ else }}
+            <span class="gpr-hl-title">{{ .title }}</span>
+          {{ end }}
+        </div>
+      {{ end }}
+    </section>
+  {{ end }}
+</article>
+{{ if .Site.Params.homepage.showRecent | default false }}
+  <section>
+    <h2 class="mt-8 text-2xl font-extrabold">{{ i18n "shortcode.recent_articles" | emojify }}</h2>
+    {{ range first .Site.Params.homepage.recentLimit (.Paginate (where .Site.RegularPages "Type" "in" .Site.Params.mainSections) .Site.Params.homepage.recentLimit).Pages }}
+      {{ partial "article-link.html" . }}
+    {{ end }}
+  </section>
+{{ end }}

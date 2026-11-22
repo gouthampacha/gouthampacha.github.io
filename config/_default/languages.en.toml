@@ -1,0 +1,24 @@
+languageCode = "en"
+languageName = "English"
+languageDirection = "ltr"
+weight = 1
+
+title = "Goutham Pacha Ravi"
+copyright = "&copy; 2026 Goutham Pacha Ravi"
+
+[params]
+  dateFormat = "January 2, 2006"
+  mainSections = ["blog"]
+  description = "Principal Software Engineer at Red Hat. Open Source enthusiast, Clemson Tiger, and lifelong learner."
+
+[params.author]
+  name = "Goutham Pacha Ravi"
+  image = "img/profile.jpg"
+  headline = "OpenStack TC Chair. Storage engineer. Red Hat."
+  bio = "I make shared storage work across OpenStack and Kubernetes, and help govern one of the world's largest open source communities."
+  links = [
+    { linkedin = "https://www.linkedin.com/in/gouthampacha" },
+    { github = "https://github.com/gouthampacha" },
+    { x-twitter = "https://x.com/gpacharavi" },
+    { email = "mailto:mail@gouthampacha.com" },
+  ]

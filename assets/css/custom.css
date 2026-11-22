@@ -1,0 +1,164 @@
+/* Custom styles for gouthampacha.com, plain CSS (Congo ships pre-compiled
+   Tailwind, so custom layout classes live here). Uses the clemson scheme's
+   CSS variables for colors. */
+
+/* -- Homepage highlight cards -- */
+.gpr-highlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin: 2rem 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .gpr-highlights {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.gpr-hl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(var(--color-neutral-300), 1);
+  border-radius: 0.5rem;
+  background: rgba(var(--color-neutral-50), 1);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.gpr-hl:hover {
+  border-color: rgba(var(--color-primary-500), 1);
+  transform: translateY(-2px);
+}
+
+.gpr-hl-title {
+  font-weight: 700;
+  color: rgba(var(--color-neutral-800), 1);
+}
+
+.gpr-hl-sub {
+  font-size: 0.875rem;
+  color: rgba(var(--color-neutral-500), 1);
+}
+
+.gpr-hl-sub a {
+  color: rgba(var(--color-primary-600), 1);
+}
+
+html.dark .gpr-hl-sub a {
+  color: rgba(var(--color-primary-400), 1);
+}
+
+html.dark .gpr-hl {
+  background: rgba(var(--color-neutral-800), 1);
+  border-color: rgba(var(--color-neutral-700), 1);
+}
+
+html.dark .gpr-hl-title {
+  color: rgba(var(--color-neutral-100), 1);
+}
+
+html.dark .gpr-hl-sub {
+  color: rgba(var(--color-neutral-400), 1);
+}
+
+/* -- Talks card grid -- */
+.gpr-talks-year {
+  margin: 2.5rem 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: rgba(var(--color-neutral-700), 1);
+}
+
+html.dark .gpr-talks-year {
+  color: rgba(var(--color-neutral-300), 1);
+}
+
+.gpr-talks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.gpr-talk {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(var(--color-neutral-300), 1);
+  border-radius: 0.5rem;
+  background: rgba(var(--color-neutral-50), 1);
+}
+
+html.dark .gpr-talk {
+  background: rgba(var(--color-neutral-800), 1);
+  border-color: rgba(var(--color-neutral-700), 1);
+}
+
+.gpr-talk-title {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.gpr-talk-title a {
+  color: rgba(var(--color-neutral-900), 1);
+  text-decoration: none;
+}
+
+.gpr-talk-title a:hover {
+  color: rgba(var(--color-primary-500), 1);
+}
+
+html.dark .gpr-talk-title a {
+  color: rgba(var(--color-neutral-50), 1);
+}
+
+.gpr-talk-meta {
+  font-size: 0.875rem;
+  color: rgba(var(--color-neutral-500), 1);
+}
+
+.gpr-talk-meta .gpr-tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  margin-right: 0.25rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(var(--color-primary-700), 1);
+  background: rgba(var(--color-primary-100), 1);
+}
+
+html.dark .gpr-talk-meta .gpr-tag {
+  color: rgba(var(--color-primary-300), 1);
+  background: rgba(var(--color-primary-900), 1);
+}
+
+.gpr-talk-abstract {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgba(var(--color-neutral-600), 1);
+  flex-grow: 1;
+}
+
+html.dark .gpr-talk-abstract {
+  color: rgba(var(--color-neutral-400), 1);
+}
+
+.gpr-talk-links {
+  font-size: 0.875rem;
+}
+
+.gpr-talk-links a {
+  margin-right: 1rem;
+  color: rgba(var(--color-primary-600), 1);
+}
+
+html.dark .gpr-talk-links a {
+  color: rgba(var(--color-primary-400), 1);
+}

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Blue Screen of Ceph — An SMB Experiment in OpenStack Manila</title>
+<link rel="stylesheet" href="vendor/asciinema-player.css">
+<style>
+  :root {
+    --bg: #0b0f14; --bg2: #10161d; --ink: #e6edf3; --dim: #8b98a5;
+    --accent: #22d3ee; --accent2: #0ea5b7; --danger: #f87171;
+    --warn: #fbbf24; --ok: #34d399; --line: #263041; --winblue: #60a5fa;
+    --font: -apple-system, "Segoe UI", "Inter", Roboto, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); }
+  #deck { height: 100%; position: relative; }
+  .slide { display: none; height: 100%; padding: 4.5vh 6vw; flex-direction: column; justify-content: center; gap: 3vh; position: relative; overflow: hidden; }
+  .slide.active { display: flex; }
+  .slide .notes { display: none; }
+  #progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); width: 0; z-index: 50; }
+  #counter { position: fixed; right: 2vw; bottom: 2.5vh; color: var(--dim); font-size: 13px; z-index: 50; }
+  #motif { position: fixed; top: 0; bottom: 0; width: 2px; background: linear-gradient(var(--accent), transparent); opacity: .35; left: 2vw; z-index: 40; }
+  #notes { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 34vh; overflow: auto; background: rgba(6,10,15,.96); border-top: 1px solid var(--line); padding: 14px 6vw 18px; font-size: 15px; line-height: 1.55; color: #c9d4de; z-index: 60; }
+  #notes.show { display: block; }
+  #notes .nlabel { color: var(--accent); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+  #notes em { color: var(--warn); }
+  h1 { font-size: 4.2vw; line-height: 1.08; font-weight: 800; }
+  h2 { font-size: 3.1vw; line-height: 1.1; font-weight: 750; }
+  h2 .kicker { display: block; font-size: 1.1vw; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.2vh; }
+  .sub { font-size: 1.7vw; color: var(--dim); }
+  ul.bullets { list-style: none; font-size: 1.75vw; line-height: 1.45; display: flex; flex-direction: column; gap: 1.6vh; }
+  ul.bullets li { padding-left: 2vw; position: relative; }
+  ul.bullets li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
+  ul.bullets li b { color: #fff; }
+  .accent { color: var(--accent); } .danger { color: var(--danger); } .ok { color: var(--ok); } .warn { color: var(--warn); } .winblue { color: var(--winblue); }
+  code, .mono { font-family: var(--mono); }
+  code.inline { background: #161d26; border: 1px solid var(--line); border-radius: 6px; padding: .1em .45em; font-size: .9em; color: var(--accent); }
+  .card { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 2vh 1.4vw; }
+  .cols { display: flex; gap: 2.5vw; align-items: stretch; }
+  .cols > * { flex: 1; }
+  .center { text-align: center; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6vh 1vw; }
+  .tile { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 1.6vh 1vw; font-size: 1.35vw; line-height: 1.35; }
+  .tile b { color: #fff; }
+  .chip { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: .35vw 1vw; font-size: 1.4vw; color: var(--dim); margin: .25vw; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 1.55vw; }
+  table.cmp th, table.cmp td { padding: 1.35vh 1vw; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.cmp th { font-size: 1.3vw; text-transform: uppercase; color: var(--dim); border-bottom: 2px solid var(--line); }
+  table.cmp td:first-child { color: var(--dim); font-size: 1.3vw; }
+  .slide#demo-slide { padding: 2vh 3vw; justify-content: flex-start; gap: 1.5vh; }
+  .castwrap { background: #05080c; border: 1px solid var(--line); border-radius: 12px; padding: 1vh; flex: 1; min-height: 0; display: flex; }
+  #player { flex: 1; min-height: 0; font-size: 13px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: var(--font); fill: var(--ink); }
+  .svdim { fill: var(--dim); } .svacc { fill: var(--accent); } .svbad { fill: var(--danger); } .svok { fill: var(--ok); } .svwin { fill: var(--winblue); }
+  .box { fill: var(--bg2); stroke: var(--line); stroke-width: 1.5; }
+  .boxw { fill: rgba(96,165,250,.07); stroke: rgba(96,165,250,.5); stroke-width: 1.5; }
+  .boxa { fill: rgba(34,211,238,.06); stroke: rgba(34,211,238,.5); stroke-width: 1.5; }
+  .flow { stroke: var(--dim); stroke-width: 2; fill: none; marker-end: url(#arr); }
+  .flowacc { stroke: var(--accent); stroke-width: 2.5; fill: none; marker-end: url(#arracc); }
+  .small { font-size: 13px; } .tiny { font-size: 11px; } .mid { font-size: 16px; }
+  .logostrip { display: flex; gap: .9vw; align-items: center; flex-wrap: wrap; }
+  .logochip { background: #f5f7fa; border-radius: 10px; padding: .7vh .8vw; display: inline-flex; align-items: center; gap: .55vw; }
+  .logochip .lname { font-size: 1.05vw; font-weight: 750; color: #1a1f26; }
+  .tmdisclaim { font-size: .8vw; color: var(--dim); }
+  .bsod { background: #0078d7; border-radius: 10px; padding: 3vh 2.5vw; color: #fff; }
+  .bsod .face { font-size: 5vw; }
+  .bsod p { font-size: 1.5vw; margin-top: 1.5vh; line-height: 1.5; }
+  .bsod .pct { font-size: 3vw; font-weight: 300; margin-top: 2vh; }
+  @media print { body { background: #fff; } #deck, .slide { display: block !important; height: auto; page-break-after: always; } #notes, #counter, #progress, #motif { display: none !important; } }
+</style>
+</head>
+<body>
+<div id="progress"></div><div id="motif"></div><div id="counter"></div>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8b98a5"/></marker>
+  <marker id="arracc" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#22d3ee"/></marker>
+</defs></svg>
+<div id="notes"><div class="nlabel">Speaker notes</div><div id="notes-body"></div></div>
+<div id="deck">
+
+<section class="slide">
+  <div class="bsod" style="max-width:46vw"><div class="face">:(</div>
+    <p>Your tenants need file shares.<br>We stopped them from getting<br>Windows-native ones.</p>
+    <div class="pct">0% NFS-everything</div>
+    <p style="font-size:1vw;margin-top:2vh">review.opendev.org/c/openstack/manila/+/1015695</p>
+  </div>
+  <div>
+    <h1>The Blue Screen of <span class="accent">Ceph</span></h1>
+    <p class="sub" style="margin-top:1.5vh">An SMB experiment in OpenStack Manila</p>
+    <div class="logostrip" style="margin-top:2.2vh">
+      <span class="logochip"><img src="vendor/logos/ceph.png" style="height:2.6vw" alt="Ceph"></span>
+      <span class="logochip"><img src="vendor/logos/openstack.svg" style="height:1.7vw" alt="OpenStack"></span>
+      <span class="logochip"><img src="vendor/logos/manila.png" style="height:2.8vw" alt="Manila"><span class="lname">Manila</span></span>
+    </div>
+    <p class="sub" style="margin-top:2.2vh">Goutham Pacha Ravi · Core Maintainer, OpenStack Manila · Red Hat</p>
+    <p class="sub" style="margin-top:0.5vh;font-size:1.2vw">Ceph Day Chicago 2026</p>
+  </div>
+  <aside class="notes">Hi everyone. I'm Goutham — I maintain Manila's CephFS driver. When Ceph grew an SMB control plane, the question was whether the Manila pattern would work a third time. Tonight: yes, but the sharp edges moved.</aside>
+</section>
+
+<section class="slide center">
+  <h2 style="font-size:3.4vw">Raise your hand: do you run <span class="accent">CephFS</span> in production?</h2>
+  <h2 style="font-size:3.4vw;margin-top:4vh">Keep it up: do your <span class="winblue">Windows</span> workloads get file shares from it?</h2>
+  <aside class="notes">Hands up for CephFS. Keep them up if Windows workloads get their shares from it. That's the gap.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">the gap is real workloads</span>SMB is the <span class="winblue">Windows</span> native tongue</h2>
+  <div class="tiles">
+    <div class="tile"><b>FSLogix / VDI</b><br>Profile containers: the #1 cloud file-share workload — every virtual desktop mounts one at login</div>
+    <div class="tile"><b>SQL Server &amp; IIS</b><br>Databases and web farms want SMB shares with ACLs</div>
+    <div class="tile"><b>macOS fleets</b><br>SMB is the only first-class network filesystem macOS ships</div>
+  </div>
+  <p class="sub" style="margin-top:1vh">In a Ceph-backed OpenStack cloud these ran on a separate Windows file-server island — or didn't run at all.</p>
+  <aside class="notes">The concrete pain: FSLogix profile containers — every VDI vendor's default profile solution is VHDX files on an SMB share. SQL Server, IIS, macOS studios. In our clouds: a separate Windows file server island, or a polite no.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">the experiment's premise</span>"Surely connecting them is easy?"</h2>
+  <div class="tiles">
+    <div class="tile"><b>CephFS</b><br>subvolumes, quotas, snapshots, clones</div>
+    <div class="tile"><b>Ceph Tentacle</b><br>the ceph-mgr smb module, cephadm-deployed Samba</div>
+    <div class="tile"><b>Manila</b><br>tenant lifecycle, access rules, snapshots</div>
+  </div>
+  <p class="sub" style="margin-top:2vh;font-size:2vw">Three bricks that look like they snap together.<br><span class="danger" style="font-weight:700">This talk explores that assumption.</span></p>
+  <aside class="notes">Three bricks, they look like LEGO, surely a weekend? This talk explores that assumption. The bricks connect — but each brick thinks it owns the house.</aside>
+</section>
+
+<section class="slide">
+  <h2 style="font-size:2.2vw"><span class="kicker">the experiment</span>Three control planes, one filesystem</h2>
+  <svg viewBox="0 0 1000 425" style="max-height:56vh">
+    <rect x="20" y="30" width="200" height="90" rx="10" class="boxw"/><text x="120" y="65" text-anchor="middle" class="mid">Windows / macOS</text><text x="120" y="90" text-anchor="middle" class="small svwin">SMB2/3 client</text>
+    <rect x="20" y="180" width="200" height="110" rx="10" class="boxa"/><text x="120" y="215" text-anchor="middle" class="mid" font-weight="700">CONTROL PLANE 1</text><text x="120" y="240" text-anchor="middle" class="small">OpenStack Manila</text><text x="120" y="260" text-anchor="middle" class="small svdim">shares · rules · snapshots</text>
+    <rect x="290" y="180" width="200" height="110" rx="10" class="boxa"/><text x="390" y="215" text-anchor="middle" class="mid" font-weight="700">CONTROL PLANE 2</text><text x="390" y="240" text-anchor="middle" class="small">ceph-mgr smb module</text><text x="390" y="260" text-anchor="middle" class="small svdim">clusters · shares · users</text>
+    <rect x="560" y="180" width="200" height="110" rx="10" class="boxa"/><text x="660" y="215" text-anchor="middle" class="mid" font-weight="700">CONTROL PLANE 3</text><text x="660" y="240" text-anchor="middle" class="small">Samba / sambacc</text><text x="660" y="260" text-anchor="middle" class="small svdim">smbd · passdb · login_control</text>
+    <rect x="520" y="30" width="200" height="90" rx="10" class="box"/><text x="620" y="65" text-anchor="middle" class="mid">CephFS</text><text x="620" y="90" text-anchor="middle" class="small svdim">subvolumes · quotas</text>
+    <rect x="790" y="30" width="180" height="90" rx="10" class="box"/><text x="880" y="75" text-anchor="middle" class="mid">RADOS</text>
+    <path d="M225,75 C350,75 420,75 515,75" class="flowacc"/><text x="370" y="60" class="small svacc" text-anchor="middle">file data (SMB2/3)</text>
+    <path d="M725,75 L785,75" class="flow"/><path d="M120,122 L120,175" class="flowacc"/><text x="132" y="152" class="tiny svacc">share API</text>
+    <path d="M225,235 L285,235" class="flowacc"/><path d="M495,235 L555,235" class="flowacc"/>
+    <text x="390" y="308" class="tiny svdim" text-anchor="middle">Manila drives the smb module via ceph-mgr</text><text x="390" y="324" class="tiny svdim" text-anchor="middle">cephadm applies resources to Samba</text>
+    <path d="M660,175 L660,123" class="flow"/><text x="672" y="152" class="tiny svdim">serves subvolumes</text>
+  </svg>
+  <aside class="notes">CP1: OpenStack Manila. CP2: ceph-mgr smb module. CP3: Samba/sambacc. The interesting work is reconciling them when they disagree.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">what a share becomes</span>A decade of co-evolution, one new protocol</h2>
+  <table class="cmp">
+    <tr><th>Manila concept</th><th>Ceph primitive</th></tr>
+    <tr><td>share (CIFS, 100 GiB)</td><td>subvolume + <code class="inline">ceph.smb.share</code> resource</td></tr>
+    <tr><td>access rule (<code class="inline">user</code>)</td><td>one <code class="inline">login_control</code> entry — Samba's <code class="inline">valid users</code> + read/write list</td></tr>
+    <tr><td>credential</td><td>tenant-supplied password via <code class="inline">access_key</code> (write-through)</td></tr>
+    <tr><td>snapshot</td><td>a CephFS subvolume snapshot</td></tr>
+  </table>
+  <p class="sub" style="margin-top:1vh;font-size:1.3vw"><span class="accent">Same lifecycle as NFS shares:</span> no export until the first rule, removed with the last — deny-by-default by absence.</p>
+  <aside class="notes">restrict_access = deny-by-default. login_control = who can do what. Same lifecycle as the NFS integration.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">sharp edge 1</span>Deny-by-default is native — but the lifecycle isn't</h2>
+  <ul class="bullets">
+    <li><code class="inline">restrict_access</code> + <code class="inline">login_control</code> give per-share authorization — Samba denies unlisted users at tree connect</li>
+    <li>Manila's rule model maps cleanly: one entry per active rule</li>
+    <li class="danger" style="font-weight:600">The sharp edge: a share with <code class="inline">restrict_access</code> and zero <code class="inline">login_control</code> entries is rejected by the module's schema</li>
+    <li>This aligns with Manila's lifecycle (create on first rule, remove on last) but required the driver to design around it explicitly</li>
+  </ul>
+  <aside class="notes">Authorization is clean. The sharp edge is the lifecycle coupling: the module rejects a restrict_access share with empty login_control. Forces create-on-first-rule, delete-on-last.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">sharp edge 2</span>Share rules propagate live… users don't</h2>
+  <ul class="bullets">
+    <li><code class="inline">login_control</code> changes apply via configwatch — no restart, tens of seconds</li>
+    <li class="danger" style="font-weight:600">New users: sambcc writes the passdb entry, but smbd doesn't pick it up automatically — a restart is required</li>
+    <li>The restart drops connections — same as any file server reboot</li>
+    <li class="warn">The real issue is <b>when</b>: it triggers on any new user creation, not a maintenance window</li>
+  </ul>
+  <aside class="notes">Share rules: configwatch, live. New users: restart required. Drops connections — same as any file server reboot. The issue is the trigger: any new user, not a maintenance window. Fix: sambcc hot-reload.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">sharp edge 3</span>When control planes disagree</h2>
+  <ul class="bullets">
+    <li>An SMB cluster with no shares is <b>never deployed</b> — removing the last share tears it down</li>
+    <li>Resource IDs cap at <b>18 characters</b> — share UUIDs had to be folded</li>
+    <li>RADOS commands time out at <b>10s</b> under load</li>
+    <li>Every one found by <b>tempest against real Ceph</b> — three became upstream fixes</li>
+  </ul>
+  <aside class="notes">Empty clusters aren't deployed. IDs cap at 18 chars. RADOS calls default to 10s. Found by tempest — three became upstream fixes.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">the answer</span>Desired state, applied declaratively</h2>
+  <ul class="bullets">
+    <li>Manila's database is the <b>source of truth</b>; Ceph smb resources are its declarative projections</li>
+    <li>Every <code class="inline">update_access</code> recomputes the <code class="inline">login_control</code> list and re-applies the share resource</li>
+    <li>Changes propagate <b>live</b> via cephadm's configwatch — no service restart</li>
+  </ul>
+  <div class="card" style="max-width:40vw;margin-top:1vh">
+    <p class="mono" style="font-size:1.2vw;line-height:1.6">
+      <span class="svdim"># the share resource:</span><br>
+      "restrict_access": <b class="ok">true</b><br>
+      "login_control": [<br>
+      &nbsp;&nbsp;{"name": "gouthamr", "access": "read-write"}<br>
+      ]
+    </p>
+  </div>
+  <aside class="notes">One source of truth, applied declaratively. The share resource IS the desired state.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">what we deliberately did NOT do</span>The first boundary is narrow</h2>
+  <ul class="bullets">
+    <li>cephadm, <b>operator-managed</b> SMB cluster — Manila drives shares within it</li>
+    <li><b>Standalone users</b> — AD deferred (requires domain-joined SID resolution tooling)</li>
+    <li><b>SMB2/3 only</b></li>
+    <li>Manila is <b>not</b> an identity service, DNS server, or gateway manager</li>
+    <li class="sub" style="font-size:1.35vw">Known limits: new-user creation restarts Samba (unscheduled); usernames are cluster-global; the smb module is <b>tech preview</b></li>
+  </ul>
+  <aside class="notes">The operator deploys the cluster; Manila drives shares in it. Standalone users first. SMB2/3 only. Known limits on the slide, not under the rug.</aside>
+</section>
+
+<section class="slide" id="demo-slide">
+  <h2 style="font-size:1.6vw;margin-bottom:0"><span class="kicker">demo</span>FSLogix profiles on CephFS — every line real</h2>
+  <div class="castwrap"><div id="player"></div></div>
+  <p class="sub" style="font-size:1.05vw;margin:0">▶ auto-plays · <b>space</b> pause/resume · <b>S</b> speaker notes</p>
+  <aside class="notes">10 acts, every line real. Narrate with DEMO-NARRATIVE.md.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">evidence</span>What the demo proved</h2>
+  <table class="cmp">
+    <tr><th>Claim</th><th>Evidence</th></tr>
+    <tr><td>Self-service lifecycle</td><td><code class="inline">share create</code> → available, no operator</td></tr>
+    <tr><td>Credentials</td><td>rule active with <code class="inline">access_key</code></td></tr>
+    <tr><td>Quotas are real</td><td><code class="inline">bytes_quota</code>; 100 GiB as free space via SMB</td></tr>
+    <tr><td>Deny-by-default</td><td>zorilla denied/granted/revoked at tree connect</td></tr>
+    <tr><td>Snapshots</td><td>appears in <code class="inline">fs subvolume snapshot ls</code></td></tr>
+  </table>
+  <aside class="notes">Everything real. Only edit is a visible sed renaming lab hostnames.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">status</span>An honest ledger</h2>
+  <div class="cols">
+    <div class="card"><p style="font-size:1.5vw;margin-bottom:1vh"><b class="ok">Works today</b></p>
+      <ul class="bullets" style="font-size:1.3vw;gap:1vh">
+        <li>create / delete / extend / shrink</li><li>user rules, rw + ro</li><li>snapshots &amp; clones</li><li>share groups</li><li>full tempest API suite passing</li>
+      </ul></div>
+    <div class="card"><p style="font-size:1.5vw;margin-bottom:1vh"><b class="danger">Not yet</b></p>
+      <ul class="bullets" style="font-size:1.3vw;gap:1vh">
+        <li>AD access rules</li><li>DHSS=True per-tenant clusters</li><li>replication, migration</li><li>the smb module is <b>tech preview</b></li>
+      </ul></div>
+  </div>
+  <aside class="notes">Left: works. Right: doesn't. Tech preview.</aside>
+</section>
+
+<section class="slide">
+  <h2><span class="kicker">asks</span>What this experiment needs from <span class="accent">Ceph</span></h2>
+  <ul class="bullets">
+    <li><b>sambcc:</b> hot-reload the passdb when users change — share rules already propagate live via configwatch; user changes should too</li>
+    <li><b>Document <code class="inline">login_control</code> and <code class="inline">restrict_access</code></b> — they work in Tentacle but are absent from the smb module documentation</li>
+    <li><b>Teuthology coverage</b> for <code class="inline">login_control</code> and <code class="inline">restrict_access</code> (tracker #76672)</li>
+  </ul>
+  <aside class="notes">Three concrete asks. One: sambcc already hot-reloads share config through configwatch — user changes should work the same way. Two: login_control and restrict_access are good primitives, they work — document them. Three: teuthology coverage. The audience that can grant these is in this room.</aside>
+</section>
+
+<section class="slide center">
+  <h2 style="font-size:3.2vw">Should CephFS-backed SMB become a<br><span class="accent">first-class Manila backend?</span></h2>
+  <div style="margin-top:4vh;display:flex;gap:5vw;justify-content:center;align-items:center">
+    <div style="text-align:center">
+      <img src="vendor/qr-driver.png" style="height:14vh;border-radius:12px;background:#fff;padding:1vh">
+      <p style="font-size:1.4vw;margin-top:1vh;font-weight:700">Driver</p>
+    </div>
+    <div style="text-align:center">
+      <img src="vendor/qr-spec.png" style="height:14vh;border-radius:12px;background:#fff;padding:1vh">
+      <p style="font-size:1.4vw;margin-top:1vh;font-weight:700">Spec</p>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:4vh">Come argue with me — here, or in #openstack-manila on OFTC</p>
+  <aside class="notes">The title's promise. Code exists, tested, spec written. Scan the codes to read the reviews.</aside>
+</section>
+
+<section class="slide center">
+  <h1>Thank you</h1>
+  <div class="logostrip" style="margin-top:4vh;justify-content:center">
+    <span class="logochip"><img src="vendor/logos/ceph.png" style="height:2.6vw"></span>
+    <span class="logochip"><img src="vendor/logos/openstack.svg" style="height:1.7vw"></span>
+    <span class="logochip"><img src="vendor/logos/manila.png" style="height:2.8vw"><span class="lname">Manila</span></span>
+  </div>
+  <p class="sub" style="margin-top:3vh">Goutham Pacha Ravi · gouthamr · #openstack-manila @ OFTC</p>
+  <aside class="notes">Thank you. Backup slides follow.</aside>
+</section>
+
+</div>
+<script src="vendor/asciinema-player.js"></script>
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length; let cur = 0; let playerBuilt = false;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const motif = document.getElementById('motif');
+  const notesEl = document.getElementById('notes');
+  const notesBody = document.getElementById('notes-body');
+  function buildPlayer() {
+    if (playerBuilt) return; playerBuilt = true;
+    AsciinemaPlayer.create({ url: 'data:application/json;base64,' + 'eyJ2ZXJzaW9uIjogMiwgIndpZHRoIjogMTAwLCAiaGVpZ2h0IjogMzAsICJ0aW1lc3RhbXAiOiAxNzk0ODUwODkwLCAiaWRsZV90aW1lX2xpbWl0IjogMi41LCAiZW52IjogeyJTSEVMTCI6ICIvYmluL3pzaCIsICJURVJNIjogInh0ZXJtLTI1NmNvbG9yIn19ClsxLjczNjY0MywibyIsIlxyXG5cdTAwMWJbMTszNm1cdTAwMWJbMW1cdTI1MDFcdTI1MDFcdTI1MDEgdGhlIHN0YWdlOiBDZXBoLCB3aXRoIGFuIFNNQiBzZXJ2aWNlIFx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MDAxYlswbVxyXG5cclxuIl0KWzIuNTg3NzA0LCJvIiwiXHUwMDFiWzE7MzJtcm9vdEBjZXBoLW5vZGUtMDFcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSNcdTAwMWJbMG0gIl0KWzIuNjYxNjIsIm8iLCJjZXBoYSJdClsyLjcxMjQyMiwibyIsImRtIHMiXQpbMi43NjMzNDMsIm8iLCJoZWwiXQpbMi44MTkyODgsIm8iLCJsIC0tIl0KWzIuODcxNDU0LCJvIiwiIGNlIl0KWzIuOTIyMzMyLCJvIiwicGggLSJdClsyLjk3ODcyOCwibyIsInMgfCAiXQpbMy4wNDE0ODEsIm8iLCJzZWQgIl0KWzMuMDk4MzA4LCJvIiwiLW4gIl0KWzMuMTUzNTkzLCJvIiwiJy9zZSJdClszLjE5OTMxNiwibyIsInJ2aSJdClszLjI1OTU1NiwibyIsImNlczoiXQpbMy4zMTY2NjUsIm8iLCIvLCRwIl0KWzMuMzczODc1LCJvIiwiJ1xyXG4iXQpbNS4yNzM1NTcsIm8iLCIgICAgc2VydmljZXM6XHJcbiAgICAgIG1vbjogMiBkYWVtb25zLCBxdW9ydW0gY2VwaC1ub2RlLTAxLGNlcGgtbm9kZS0wMiAoYWdlIDM0aCkgW2xlYWRlcjogY2VwaC1ub2RlLTAxXVxyXG4gICAgICBtZ3I6IGNlcGgtbm9kZS0wMS5kdmptbGooYWN0aXZlLCBzaW5jZSAyZCksIHN0YW5kYnlzOiBjZXBoLW5vZGUtMDIucmtvbmtmXHJcbiAgICAgIG1kczogMS8xIGRhZW1vbnMgdXAsIDEgc3RhbmRieVxyXG4gICAgICBvc2Q6IDQgb3NkczogNCB1cCAoc2luY2UgMzRoKSwgNCBpbiAoc2luY2UgMmQpXHJcbiAgIFxyXG4gICAgZGF0YTpcclxuICAgICAgdm9sdW1lczogMS8xIGhlYWx0aHlcclxuICAgICAgcG9vbHM6ICAgNCBwb29scywgMzA1IHBnc1xyXG4gICAgICBvYmplY3RzOiA0MTMgb2JqZWN0cywgNTM1IE1pQlxyXG4gICAgICB1c2FnZTogICAxMDA3IE1pQiB1c2VkLCAzNDkgR2lCIC8gMzUwIEdpQiBhdmFpbFxyXG4gICAgICBwZ3M6ICAgICAzMDUgYWN0aXZlK2NsZWFuXHJcbiAgIFxyXG4iXQpbOC4yNzY4ODIsIm8iLCJcdTAwMWJbMTszMm1yb290QGNlcGgtbm9kZS0wMVx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtI1x1MDAxYlswbSBjIl0KWzguMzIyNjY2LCJvIiwiZXAiXQpbOC4zNzI1ODgsIm8iLCJoYWRtIl0KWzguNDIwODYzLCJvIiwiIHNoIl0KWzguNDc3Mzk2LCJvIiwiZWxsIl0KWzguNTMxNSwibyIsIiAtLSAiXQpbOC41ODI0MzQsIm8iLCJjZXAiXQpbOC42MzgzMTksIm8iLCJoIG9yIl0KWzguNzAzNjM5LCJvIiwiY2ggbCJdCls4Ljc2MjQ4NCwibyIsInNcclxuIl0KWzEwLjY1MTYxNCwibyIsIiAgTkFNRSAgICAgICAgICAgIFBPUlRTICAgICAgIFJVTk5JTkcgIFJFRlJFU0hFRCAgQUdFICBQTEFDRU1FTlQgICAgICAgICAgIFxyXG4gIGNyYXNoICAgICAgICAgICAgICAgICAgICAgICAgICAgMS8yICAxMW0gYWdvICAgIDJkICAgKiAgICAgICAgICAgICAgICAgICBcclxuICBtZHMuY2VwaGZzICAgICAgICAgICAgICAgICAgICAgIDIvMiAgMTFtIGFnbyAgICAyZCAgIGNvdW50OjIgICAgICAgICAgICAgXHJcbiAgbWdyICAgICAgICAgICAgICAgICAgICAgICAgICAgICAyLzIgIDExbSBhZ28gICAgMmQgICBjb3VudDoyICAgICAgICAgICAgIFxyXG4gIG1vbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMi81ICAxMW0gYWdvICAgIDJkICAgY291bnQ6NSAgICAgICAgICAgICBcclxuICBvc2QuZGVmYXVsdCAgICAgICAgICAgICAgICAgICAgICAgNCAgMTFtIGFnbyAgICAyZCAgIGNlcGgtbm9kZS0wMSAgXHJcbiAgc21iLm1hbmlsYS1zbWIgID86NDQ1LDk5MjIgICAgICAxLzEgIDExbSBhZ28gICAgN20gICBjb3VudDoxICAgICAgICAgICAgIFxyXG4iXQpbMTMuMDY3MzUxLCJvIiwiXHUwMDFiWzE7MzJtcm9vdEBjZXBoLW5vZGUtMDFcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSNcdTAwMWJbMG0gIl0KWzEzLjEyOTI5MywibyIsImNlcGgiXQpbMTMuMjExNDE1LCJvIiwiYWRtIHNoIl0KWzEzLjI2MzMzNywibyIsImVsbCAiXQpbMTMuMzE3MzA4LCJvIiwiLS0gIl0KWzEzLjQ1NDAwMiwibyIsImNlcGgiXQpbMTMuNTAyMzksIm8iLCIgb3JjaCBwcyAiXQpbMTMuNTUxNjY2LCJvIiwiLS1zIl0KWzEzLjYwNzQzMSwibyIsImVydiJdClsxMy42NjIzMTUsIm8iLCJpY2UtIl0KWzEzLjcxNjEzLCJvIiwidHlwZSJdClsxMy43NzAxMTUsIm8iLCIgc21iIl0KWzEzLjgyNzQ4NCwibyIsIlxyXG4iXQpbMTUuNTgxNDI2LCJvIiwiICBJbnZhbGlkIGNvbW1hbmQ6IFVuZXhwZWN0ZWQgYXJndW1lbnQgJy0tc2VydmljZS10eXBlJ1xyXG4gIG9yY2ggcHMgWzxob3N0bmFtZT5dIFstLXNlcnZpY2VfbmFtZSA8dmFsdWU+XSBbLS1kYWVtb25fdHlwZSA8dmFsdWU+XSBbLS1kYWVtb25faWQgPHZhbHVlPl0gWy0tc29ydF9ieSB7c2VydmljZV9uYW1lfGRhZW1vbl90eXBlfG5hbWV8aG9zdHxzdGF0dXN8cmVmcmVzaGVkfGFnZXxtZW1fdXNlfG1lbV9saW18aW1hZ2V9XSBbLS1mb3JtYXQge3BsYWlufGpzb258anNvbi1wcmV0dHl8eWFtbHx4bWwtcHJldHR5fHhtbH1dIFstLXJlZnJlc2hdIDogIExpc3QgZGFlbW9ucyBrbm93biB0byBvcmNoZXN0cmF0b3JcclxuICBFcnJvciBFSU5WQUw6IGludmFsaWQgY29tbWFuZFxyXG4iXQpbMTguMDc3OTEyLCJvIiwiXHJcblx1MDAxYlsxOzM2bVx1MDAxYlsxbVx1MjUwMVx1MjUwMVx1MjUwMSBiYXNlbGluZTogd2hhdCBDZXBoIGtub3dzIHJpZ2h0IG5vdyBcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTAwMWJbMG1cclxuXHJcbiJdClsxOS4xNDE1MzQsIm8iLCJcdTAwMWJbMTszMm1yb290QGNlcGgtbm9kZS0wMVx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtI1x1MDAxYlswbSAiXQpbMTkuMTk3MTIsIm8iLCJjZXBoYWRtIHNoZWxsIC0iXQpbMTkuMjU0MzQ2LCJvIiwiLSBjZSJdClsxOS4zMTI4NSwibyIsInBoIHMiXQpbMTkuMzc5ODEyLCJvIiwibWIgIl0KWzE5LjQ1NDQyNSwibyIsInNob3cgIl0KWzE5LjU0OTA1LCJvIiwiY2VwaC4iXQpbMTkuNjI0ODExLCJvIiwic21iLnVzZXIiXQpbMTkuNjcxNDg1LCJvIiwic2dyIl0KWzE5LjcyNDA5LCJvIiwib3VwIl0KWzE5Ljc3NDYwOCwibyIsInMubWEiXQpbMTkuODQ4OTQyLCJvIiwibmlsYS0iXQpbMTkuOTAzOTEzLCJvIiwibWFuaSJdClsxOS45NzI3NDYsIm8iLCJsYS1zIl0KWzIwLjAxNzU5OSwibyIsIm1iXHJcbiJdClsyMS44OTQxMDUsIm8iLCIgIHtcclxuICAgIFwicmVzb3VyY2VfdHlwZVwiOiBcImNlcGguc21iLnVzZXJzZ3JvdXBzXCIsXHJcbiAgICBcInVzZXJzX2dyb3Vwc19pZFwiOiBcIm1hbmlsYS1tYW5pbGEtc21iXCIsXHJcbiAgICBcImludGVudFwiOiBcInByZXNlbnRcIixcclxuICAgIFwidmFsdWVzXCI6IHtcclxuICAgICAgXCJ1c2Vyc1wiOiBbXSxcclxuICAgICAgXCJncm91cHNcIjogW11cclxuICAgIH1cclxuICB9XHJcbiJdClsyNC41MzA0OTUsIm8iLCJcdTAwMWJbMTszMm1yb290QGNlcGgtbm9kZS0wMVx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtI1x1MDAxYlswbSAiXQpbMjQuNjUwNTQ1LCJvIiwiY2VwaGFkbSBzaGVsbCAtLSJdClsyNC43NTM5NTcsIm8iLCIgY2VwaCAiXQpbMjQuODM1MDc4LCJvIiwic21iIGNsIl0KWzI0Ljg5MzY0NSwibyIsInVzdGVyICJdClsyNC45NTI2MTIsIm8iLCJsc1xyXG4iXQpbMjYuODI2MTg5LCJvIiwiICBbXHJcbiAgICBcIm1hbmlsYS1zbWJcIlxyXG4gIF1cclxuIl0KWzI4LjMyMTYzOCwibyIsIlxyXG5cdTAwMWJbMTszNm1cdTAwMWJbMW1cdTI1MDFcdTI1MDFcdTI1MDEgYSB0ZW5hbnQgYXNrcyBmb3IgYSBXaW5kb3dzIHNoYXJlIFx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MjUwMVx1MDAxYlswbVxyXG5cclxuIl0KWzI5LjIxODc4NCwibyIsIlx1MDAxYlsxOzMybXZkaS1hZG1pbkBjbG91ZFx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtJFx1MDAxYlswbSAiXQpbMjkuMjgyODQ4LCJvIiwib3BlbiJdClsyOS4zNDczNDksIm8iLCJzdGFjIl0KWzI5LjQwMjcwMywibyIsImsgc2hhIl0KWzI5LjQ1ODc3OCwibyIsInJlIGMiXQpbMjkuNTU3MDQ5LCJvIiwicmVhIl0KWzI5LjYzMzcyMywibyIsInRlIENJRlMiXQpbMjkuNzU4NTUzLCJvIiwiIDEwMCAtIl0KWzI5Ljg3Mjc1LCJvIiwiLXNoYXJlLSJdClsyOS45NDQyOTMsIm8iLCJ0eXBlIGNlcCJdClszMC4wMDM4MzEsIm8iLCJoZnN0eSJdClszMC4wODAxNzEsIm8iLCJwZSAtIl0KWzMwLjE0Mzg4MywibyIsIi1uYW1lIl0KWzMwLjIyNzk0NSwibyIsIiBmc2xvIl0KWzMwLjMwMzg4OCwibyIsImdpeC1wIl0KWzMwLjM1NDYyMywibyIsInJvZmlsIl0KWzMwLjQ4MTQwOSwibyIsImVzXHJcbiJdClszMi4zMDI2MjgsIm8iLCIgICstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiAgfCBGaWVsZCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgVmFsdWUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tK1xyXG4gIHwgaWQgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IDA4YTIwNzBmLTZmMWMtNDhkNC05NTc2LWViY2RkOTc2YmZlZCB8XHJcbiAgfCBzaXplICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgMTAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGF2YWlsYWJpbGl0eV96b25lICAgICAgICAgICAgICAgICAgICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgY3JlYXRlZF9hdCAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IDIwMjYtMTEtMTZUMTc6NDI6MDMuMTg4MzYzICAgICAgICAgICB8XHJcbiAgfCBzdGF0dXMgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgY3JlYXRpbmcgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IG5hbWUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCBmc2xvZ2l4LXByb2ZpbGVzICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgZGVzY3JpcHRpb24gICAgICAgICAgICAgICAgICAgICAgICAgICB8IE5vbmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBwcm9qZWN0X2lkICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgODViODgwNDg4M2EyNDdiOTk2Mzc5MGI1ZDI3ZTk2MzEgICAgIHxcclxuICB8IHNuYXBzaG90X2lkICAgICAgICAgICAgICAgICAgICAgICAgICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgc2hhcmVfbmV0d29yIl0KWzMyLjMwMjgwNCwibyIsImtfaWQgICAgICAgICAgICAgICAgICAgICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgc2hhcmVfcHJvdG8gICAgICAgICAgICAgICAgICAgICAgICAgICB8IENJRlMgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBtZXRhZGF0YSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwge30gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHNoYXJlX3R5cGUgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCBmYmRkNjIwMS1hNjNhLTRiNjItYjNhNC1iNWMwMzNmNjg4MjcgfFxyXG4gIHwgdm9sdW1lX3R5cGUgICAgICAgICAgICAgICAgICAgICAgICAgICB8IGNlcGhmc3R5cGUgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBpc19wdWJsaWMgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgRmFsc2UgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHNuYXBzaG90X3N1cHBvcnQgICAgICAgICAgICAgICAgICAgICAgfCBUcnVlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgdGFza19zdGF0ZSAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IE5vbmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBzaGFyZV90eXBlX25hbWUgICAgICAgICAgICAgICAgICAgICAgIHwgY2VwaGZzdHlwZSAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGFjY2Vzc19ydWxlc19zdGF0dXMgICAgICAgICAgICAgICAgICAgfCBhY3RpdmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgcmVwbGljYXRpb25fdHlwZSAgICAgICAgICAgICAgICAgICAgICB8IE5vbmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBoYXNfcmVwbGljYXMgICAgICAgICAgICAgICAgICAgICAgICAgIHwgRmFsc2UgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHVzZXJfaWQgICAgICAgICAgICAgICAgICAgICAiXQpbMzIuMzAyODIzLCJvIiwiICAgICAgICAgIHwgYjVmYzA3ZjcxMWJhNDEzOGE0MTA4ZjdlZmNmZWJhZjAgICAgIHxcclxuICB8IGNyZWF0ZV9zaGFyZV9mcm9tX3NuYXBzaG90X3N1cHBvcnQgICAgfCBUcnVlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgcmV2ZXJ0X3RvX3NuYXBzaG90X3N1cHBvcnQgICAgICAgICAgICB8IEZhbHNlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBzaGFyZV9ncm91cF9pZCAgICAgICAgICAgICAgICAgICAgICAgIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHNvdXJjZV9zaGFyZV9ncm91cF9zbmFwc2hvdF9tZW1iZXJfaWQgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgbW91bnRfc25hcHNob3Rfc3VwcG9ydCAgICAgICAgICAgICAgICB8IEZhbHNlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBwcm9ncmVzcyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGlzX3NvZnRfZGVsZXRlZCAgICAgICAgICAgICAgICAgICAgICAgfCBGYWxzZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgc2NoZWR1bGVkX3RvX2JlX2RlbGV0ZWRfYXQgICAgICAgICAgICB8IE5vbmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBzb3VyY2VfYmFja3VwX2lkICAgICAgICAgICAgICAgICAgICAgIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGVuY3J5cHRpb25fa2V5X3JlZiAgICAgICAgICAgICAgICAgICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gICstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiJdClszOC42NzUyNTYsIm8iLCJcdTAwMWJbMTszMm12ZGktYWRtaW5AY2xvdWRcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSRcdTAwMWJbMG0gIl0KWzM4Ljc5NTI2NSwibyIsIm9wZW5zdGFjayBzaCJdClszOC45MDk3MjgsIm8iLCJhcmUgc2giXQpbMzguOTk4NTExLCJvIiwib3cgZnNsb2dpIl0KWzM5LjA3NDU0OCwibyIsIngtcHIiXQpbMzkuMTUxOTY1LCJvIiwib2ZpbGVzIl0KWzM5LjI0MjE4NiwibyIsIiB8IGdyIl0KWzM5LjM5ODQyLCJvIiwiZXAgLUUgIl0KWzM5LjUyNDc2OCwibyIsIidzdGF0dXN8c2l6ZSJdClszOS41ODYzOTMsIm8iLCJ8c2hhcmVfIl0KWzM5LjcxMzAxLCJvIiwicHJvdCJdClszOS43ODI3MSwibyIsIm8nXHJcbiJdCls0MS41Mjg2OTksIm8iLCIgIHwgc2l6ZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IDEwMCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgc3RhdHVzICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IGF2YWlsYWJsZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgc2hhcmVfcHJvdG8gICAgICAgICAgICAgICAgICAgICAgICAgICB8IENJRlMgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX3J1bGVzX3N0YXR1cyAgICAgICAgICAgICAgICAgICB8IGFjdGl2ZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4iXQpbNDQuMDM0NzY3LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdCls0NC4xMTc5OTQsIm8iLCJvcGVucyJdCls0NC4xNzI3NDYsIm8iLCJ0YWNrIHMiXQpbNDQuMjMzMzA1LCJvIiwiaGFyIl0KWzQ0LjM0MjUxNiwibyIsImUgZXhwIl0KWzQ0LjQ0OTM4OSwibyIsIm9ydCBsb2MiXQpbNDQuNTIzNjA0LCJvIiwiYXRpb24gbCJdCls0NC41OTcyODEsIm8iLCJpc3QgZiJdCls0NC42NzI2NDIsIm8iLCJzbG9naSJdCls0NC43NTI2MjIsIm8iLCJ4LXBybyJdCls0NC44MzkxMDMsIm8iLCJmaWxlcyJdCls0NC45MDA3NCwibyIsIlxyXG4iXQpbNDYuNjQ1NjQ3LCJvIiwiICArLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0rXHJcbiAgfCBJRCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCBQYXRoICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCBQcmVmZXJyZWQgfFxyXG4gICstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLStcclxuICB8IDdjYTFiMDNhLWEwZDktNDYwMC04ZjkwLTRhMzEyNzk1MjM5OCB8IC8vY2VwaC1ub2RlLTAxL2ZhNzg5NTY3LTgzMWUtNDkxMS05ZDBkLTBhNjVkM2NhN2Y0YSB8IEZhbHNlICAgICB8XHJcbiAgKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tK1xyXG4iXQpbNDkuMTY0OTEsIm8iLCJcclxuXHUwMDFiWzE7MzZtXHUwMDFiWzFtXHUyNTAxXHUyNTAxXHUyNTAxIGFjY2VzcyBmb3IgYSB1c2VyLCBjcmVkZW50aWFscyBpbmNsdWRlZCBcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTAwMWJbMG1cclxuXHJcbiJdCls1MC4wNDAyNywibyIsIlx1MDAxYlsxOzMybXZkaS1hZG1pbkBjbG91ZFx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtJFx1MDAxYlswbSAiXQpbNTAuMTAyNTUsIm8iLCJvcGVuIl0KWzUwLjE4ODk3NCwibyIsInN0YWNrIl0KWzUwLjI2MTc5MSwibyIsIiBzaGFyZSJdCls1MC4zMzczNDMsIm8iLCIgYWNjIl0KWzUwLjM5NzExOSwibyIsImVzcyBjIl0KWzUwLjQ3Njc3NywibyIsInJlYXRlIl0KWzUwLjU5MDUzNywibyIsIiBmc2xvIl0KWzUwLjY3OTA0LCJvIiwiZ2l4LXByb2ZpIl0KWzUwLjc0ODM4NiwibyIsImxlcyB1Il0KWzUwLjg2NjAzNywibyIsInNlciAiXQpbNTAuOTQwMzI0LCJvIiwiZ291dGhhbXIiXQpbNTEuMDAyMDgxLCJvIiwiIC0tbG8iXQpbNTEuMDc3NTg2LCJvIiwiY2stdiJdCls1MS4xNTE4MTYsIm8iLCJpc2liaSJdCls1MS4yMzU4OTEsIm8iLCJsaXR5ICJdCls1MS40MzcwMzUsIm8iLCItLWxvY2stIl0KWzUxLjU5MjQ2MiwibyIsImRlbGV0aW9uXHJcbiJdCls1My4yNDY4NTMsIm8iLCIgICstLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuICB8IEZpZWxkICAgICAgICB8IFZhbHVlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgKy0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tK1xyXG4gIHwgaWQgICAgICAgICAgIHwgNjg3MjJiODctOGZjNS00MjJlLTkyYjQtMzcyZTg3MzE3Y2EyIHxcclxuICB8IHNoYXJlX2lkICAgICB8IDA4YTIwNzBmLTZmMWMtNDhkNC05NTc2LWViY2RkOTc2YmZlZCB8XHJcbiAgfCBhY2Nlc3NfbGV2ZWwgfCBydyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX3RvICAgIHwgZ291dGhhbXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGFjY2Vzc190eXBlICB8IHVzZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBzdGF0ZSAgICAgICAgfCBxdWV1ZWRfdG9fYXBwbHkgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX2tleSAgIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGNyZWF0ZWRfYXQgICB8IDIwMjYtMTEtMTZUMTc6NDI6MjQuMTM1NTU4ICAgICAgICAgICB8XHJcbiAgfCB1cGRhdGVkX2F0ICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgcHJvcGVydGllcyAgIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiJdCls1Ni42MTAyMjEsIm8iLCJcdTAwMWJbMTszMm12ZGktYWRtaW5AY2xvdWRcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSRcdTAwMWJbMG0gIl0KWzU2LjY5NDIwOSwibyIsIm9wZW5zdGFjIl0KWzU2Ljc1MjM3NCwibyIsImsgc2hhIl0KWzU2LjgxMzUyNiwibyIsInJlIGEiXQpbNTYuODg5NDI0LCJvIiwiY2NlcyJdCls1Ni45NjE5MDMsIm8iLCJzIGxpcyJdCls1Ny4wNzMzOTksIm8iLCJ0IGZzbG9naSJdCls1Ny4xNDE4OTksIm8iLCJ4LXByIl0KWzU3LjIxMjQ3NCwibyIsIm9maWxlIl0KWzU3LjI3MjEwNSwibyIsInNcclxuIl0KWzU4Ljk5NDc2NywibyIsIiAgKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuICB8IElEICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8IEFjY2VzcyBUeXBlIHwgQWNjZXNzIFRvIHwgQWNjZXNzIExldmVsIHwgU3RhdGUgIHwgQWNjZXNzIEtleSAgICAgICAgICAgICB8IENyZWF0ZWQgQXQgICAgICAgICAgICAgICAgIHwgVXBkYXRlZCBBdCAgICAgICAgICAgICAgICAgfFxyXG4gICstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiAgfCA2ODcyMmI4Ny04ZmM1LTQyMmUtOTJiNC0zNzJlODczMTdjYTIgfCB1c2VyICAgICAgICB8IGdvdXRoYW1yICB8IHJ3ICAgICAgICAgICB8IGFjdGl2ZSB8IEhjemRta2J1dHhmamE4VWYxbS1BOWcgfCAyMDI2LTExLTE2VDE3OjQyOjI0LjEzNTU1OCB8IDIwMjYtMTEtMTZUMTc6NDI6MjUuNzk4MzcwIHxcclxuICArLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLSstLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tK1xyXG4iXQpbNjEuOTk5ODQ4LCJvIiwiXHJcblx1MDAxYlsxOzM2bVx1MDAxYlsxbVx1MjUwMVx1MjUwMVx1MjUwMSBDZXBoIHJlYWN0cyAodGhlIHNhbWUgQVBJIHlvdSB1c2UgYnkgaGFuZCkgXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUwMDFiWzBtXHJcblxyXG4iXQpbNjIuODgzNDI3LCJvIiwiXHUwMDFiWzE7MzJtcm9vdEBjZXBoLW5vZGUtMDFcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSNcdTAwMWJbMG0gIl0KWzYyLjk1NTY1OCwibyIsImNlcGhhIl0KWzYzLjAyOTMyNiwibyIsImRtIHNoIl0KWzYzLjEyNzU4NiwibyIsImVsbCAtIl0KWzYzLjIzMTU2NywibyIsIi0gY2VwaCAiXQpbNjMuMjk4MTI2LCJvIiwic21iIHNoIl0KWzYzLjM5MjYzNywibyIsIm93IGMiXQpbNjMuNDY1NjMzLCJvIiwiZXBoLnNtYiJdCls2My41MzM2OSwibyIsIi51c2VyIl0KWzYzLjYyODM0OCwibyIsInNncm91Il0KWzYzLjY5NTY1MSwibyIsInBzLm1hbiJdCls2My43NjY2NTIsIm8iLCJpbGEtIl0KWzYzLjg1OTE4MiwibyIsIm1hbmlsYSJdCls2My45MTIwOTYsIm8iLCItc21iXHJcbiJdCls2NS43ODA0MDIsIm8iLCIgIHtcclxuICAgIFwicmVzb3VyY2VfdHlwZVwiOiBcImNlcGguc21iLnVzZXJzZ3JvdXBzXCIsXHJcbiAgICBcInVzZXJzX2dyb3Vwc19pZFwiOiBcIm1hbmlsYS1tYW5pbGEtc21iXCIsXHJcbiAgICBcImludGVudFwiOiBcInByZXNlbnRcIixcclxuICAgIFwidmFsdWVzXCI6IHtcclxuICAgICAgXCJ1c2Vyc1wiOiBbXSxcclxuICAgICAgXCJncm91cHNcIjogW11cclxuICAgIH1cclxuICB9XHJcbiJdCls2OC43NDI3MDUsIm8iLCJcdTAwMWJbMTszMm1yb290QGNlcGgtbm9kZS0wMVx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtI1x1MDAxYlswbSAiXQpbNjguODAzMTQxLCJvIiwiY2VwaGEiXQpbNjguODY3NDM2LCJvIiwiZG0gcyJdCls2OC45NDkwNzQsIm8iLCJoZWxsIl0KWzY5LjAwMTQyNiwibyIsIiAtLSBjIl0KWzY5LjA3NDk4NywibyIsImVwaCBmIl0KWzY5LjE5MzE2NSwibyIsInMgc3Vidm8iXQpbNjkuMjcyMzQ0LCJvIiwibHVtZSBpIl0KWzY5LjMzMTA4OSwibyIsIm5mbyBjIl0KWzY5LjM5MTEwNywibyIsImVwaCJdCls2OS40NzMzNDgsIm8iLCJmcyBmYSJdCls2OS42NzM0MzksIm8iLCI3ODk1NjciXQpbNjkuNzY3MDk4LCJvIiwiLTgzMWUtNDkxMS05ZCJdCls2OS44NDgwMjYsIm8iLCIwZC0wYTYiXQpbNjkuOTE1MDU1LCJvIiwiNWQzY2E3Il0KWzY5Ljk4MTQ2MSwibyIsImY0YVxyXG4iXQpbNzEuNzk3MTY4LCJvIiwiICB7XHJcbiAgICAgIFwiYXRpbWVcIjogXCIyMDI2LTExLTE2IDE3OjQyOjAzXCIsXHJcbiAgICAgIFwiYnl0ZXNfcGNlbnRcIjogXCIwLjAwXCIsXHJcbiAgICAgIFwiYnl0ZXNfcXVvdGFcIjogMTA3Mzc0MTgyNDAwLFxyXG4gICAgICBcImJ5dGVzX3VzZWRcIjogMCxcclxuICAgICAgXCJjYXNlc2Vuc2l0aXZlXCI6IHRydWUsXHJcbiAgICAgIFwiY3JlYXRlZF9hdFwiOiBcIjIwMjYtMTEtMTYgMTc6NDI6MDNcIixcclxuICAgICAgXCJjdGltZVwiOiBcIjIwMjYtMTEtMTYgMTc6NDI6MjVcIixcclxuICAgICAgXCJkYXRhX3Bvb2xcIjogXCJjZXBoZnMuY2VwaGZzLmRhdGFcIixcclxuICAgICAgXCJlYXJtYXJrXCI6IFwic21iLmNsdXN0ZXIubWFuaWxhLXNtYlwiLFxyXG4gICAgICBcImZlYXR1cmVzXCI6IFtcclxuICAgICAgICAgIFwic25hcHNob3QtY2xvbmVcIixcclxuICAgICAgICAgIFwic25hcHNob3QtYXV0b3Byb3RlY3RcIixcclxuICAgICAgICAgIFwic25hcHNob3QtcmV0ZW50aW9uXCJcclxuICAgICAgXSxcclxuICAgICAgXCJmbGF2b3JcIjogMixcclxuICAgICAgXCJnaWRcIjogMCxcclxuICAgICAgXCJtb2RlXCI6IDE2ODk1LFxyXG4gICAgICBcIm1vbl9hZGRyc1wiOiBbXHJcbiAgICAgICAgICBcImNlcGgtbm9kZS0wMTo2Nzg5XCIsXHJcbiAgICAgICAgICBcIjE5Mi4xNjguMTIyLjE0NDo2Nzg5XCJcclxuICAgICAgXSxcclxuICAgICAgXCJtdGltZVwiOiBcIjIwMjYtMTEtMTYgMTc6NDI6MDNcIixcclxuICAgICAgXCJub3JtYWxpemF0aW9uXCI6IFwibm9uZVwiLFxyXG4gICAgICBcInBhdGhcIjogXCIvdm9sdW1lcy9fbm9ncm91cC9mYTc4OTU2Ny04MzFlLTQ5MTEtOWQwZC0wYTY1ZDNjYTdmNGEvNWE3ZDhmZjQtY2FjNC00ZGUyLTljNTQtZDQ4NzA4N2RkNDA2XCIsXHJcbiAgICAgIFwicG9vbF9uYW1lc3BhY2VcIjogXCJmc3ZvbHVtZW5zX19fbm9ncm91cF9mYTc4OTU2Ny04MzFlLTQ5MTEtOWQwZC0wYTY1ZDNjYTdmNGFcIixcclxuICAgICAgXCJzdGF0ZVwiOiBcImNvbXBsZXRlXCIsXHJcbiAgICAgIFwidHlwZVwiOiBcInN1YnZvbHVtZVwiLFxyXG4gICAgICBcInVpZFwiOiAwXHJcbiAgfVxyXG4iXQpbNzQuNzgzMzE2LCJvIiwiXHJcblx1MDAxYlsxOzM2bVx1MDAxYlsxbVx1MjUwMVx1MjUwMVx1MjUwMSB0aGUgV2luZG93cyBjbGllbnQgXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUwMDFiWzBtXHJcblxyXG4iXQpbNzYuOTg4OTM3LCJvIiwiXHUwMDFiWzE7MzJtc3lzYWRtaW5Ad2luLWNsaWVudFx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtJFx1MDAxYlswbSAiXQpbNzcuMDcwMDcsIm8iLCJzbWJjbCJdCls3Ny4xNDEyMzUsIm8iLCJpZW50IC8iXQpbNzcuMjA0ODk1LCJvIiwiLzE5MiJdCls3Ny4yNzk5NTgsIm8iLCIuMTY4LiJdCls3Ny4zNTgwNTYsIm8iLCIxMjIuMSJdCls3Ny40MzM4MDcsIm8iLCI0My9mYSJdCls3Ny41MDAyNTcsIm8iLCI3ODk1NiJdCls3Ny41NzI1NjgsIm8iLCI3LTgzMSJdCls3Ny42Mzg2NTgsIm8iLCJlLTQ5Il0KWzc3LjcxMjgzMywibyIsIjExLTlkIl0KWzc3Ljc4OTQyMywibyIsIjBkLTBhIl0KWzc3Ljg3Nzc1MywibyIsIjY1ZDNjYSJdCls3Ny45Mzk4OTEsIm8iLCI3ZjRhICJdCls3OC4wMTI5MDcsIm8iLCItVSBnbyJdCls3OC4wODc1MzEsIm8iLCJ1dGhhIl0KWzc4LjE1MjcxMiwibyIsIm1yJUhjeiJdCls3OC4yMTIzMjIsIm8iLCJkbWtiIl0KWzc4LjI3NzQ4NywibyIsInV0eGYiXQpbNzguMzM5NTMyLCJvIiwiamE4VSJdCls3OC4zOTMyNjUsIm8iLCJmMW0tIl0KWzc4LjQ1ODA0MiwibyIsIkE5ZyAiXQpbNzguNTIyMjYxLCJvIiwiLWMgJ20iXQpbNzguNTkyOTY1LCJvIiwia2RpciJdCls3OC42NjEwMiwibyIsIiBnb3V0Il0KWzc4LjczMTM1OSwibyIsImhhbXIiXQpbNzguODE5Mjg5LCJvIiwiOyBwdXQiXQpbNzguODkzNTM0LCJvIiwiIC9ldGMvIl0KWzc4Ljk2MzM1MSwibyIsImhvc3RuIl0KWzc5LjAyMzMxNiwibyIsImFtZSBnIl0KWzc5LjA4NjU0NSwibyIsIm91dGgiXQpbNzkuMTUyNjE4LCJvIiwiYW1yLSJdCls3OS4yMjIyMjUsIm8iLCJwcm9mIl0KWzc5LjI5MDg1NiwibyIsImlsZS52Il0KWzc5LjQwNzI5MSwibyIsImhkeDsgbHMnIl0KWzc5LjQ3ODA3MywibyIsIlxyXG4iXQpbNzkuODgxMjYzLCJvIiwiICBzZXNzaW9uIHNldHVwIGZhaWxlZDogTlRfU1RBVFVTX0xPR09OX0ZBSUxVUkVcclxuIl0KWzgzLjg3OTM5NSwibyIsIlxyXG5cdTAwMWJbMTszNm1cdTAwMWJbMW1cdTI1MDFcdTI1MDFcdTI1MDEgb25lIG5hbWVzcGFjZSwgdHdvIHByb3RvY29scyBcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTAwMWJbMG1cclxuXHJcbiJdCls4NC43NzM0OTIsIm8iLCJcdTAwMWJbMTszMm1yb290QGNlcGgtbm9kZS0wMVx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtI1x1MDAxYlswbSAiXQpbODQuODU2NDY4LCJvIiwibHMgLWwiXQpbODQuOTE4NTEzLCJvIiwiIC92YXIiXQpbODQuOTkyNjA3LCJvIiwiL2xpYiJdCls4NS4wNTMwMzQsIm8iLCIvbWFuaSJdCls4NS4xMTM2NiwibyIsImxhL2MiXQpbODUuMTczODU5LCJvIiwiZXBoZiJdCls4NS4yMzI0NzksIm8iLCJzX3MiXQpbODUuMzA1NTc1LCJvIiwibWIvXyJdCls4NS4zNjM3OTYsIm8iLCJub2dybyJdCls4NS40MjM3MjUsIm8iLCJ1cC9mIl0KWzg1LjU0OTE1OCwibyIsImE3ODkiXQpbODUuNjc3NjgsIm8iLCI1NjctODMxZSJdCls4NS43NTA4NDgsIm8iLCItNDkxMS05ZCJdCls4NS44MjA3NDksIm8iLCIwZC0wYTYiXQpbODUuODg1NjM1LCJvIiwiNWQzYyJdCls4NS45NDkxMjksIm8iLCJhN2Y0Il0KWzg2LjAxODYzNSwibyIsImEvXHJcbiJdCls4Ni4zODQyMjUsIm8iLCIgIHRvdGFsIDBcclxuICBkcnd4cnd4cnd4KyAyIHJvb3Qgcm9vdCAwIE5vdiAxNiAxNzo0MiA1YTdkOGZmNC1jYWM0LTRkZTItOWM1NC1kNDg3MDg3ZGQ0MDZcclxuIl0KWzg5LjM5NDI0OSwibyIsIlxyXG5cdTAwMWJbMTszNm1cdTAwMWJbMW1cdTI1MDFcdTI1MDFcdTI1MDEgZGVueS1ieS1kZWZhdWx0OiB1c2VyIHpvcmlsbGEgXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUwMDFiWzBtXHJcblxyXG4iXQpbOTAuMzA5MDk1LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdCls5MC40MTE2NjYsIm8iLCJvcGVuc3QiXQpbOTAuNDk2NzgzLCJvIiwiYWNrIHNoIl0KWzkwLjU2ODkwMiwibyIsImFyZSBhYyJdCls5MC42NDM5MjksIm8iLCJjZXNzICJdCls5MC43MzI3OCwibyIsImNyZWF0Il0KWzkwLjgxOTI2MywibyIsImUgZnNsbyJdCls5MC44OTAxMzMsIm8iLCJnaXgtcHIiXQpbOTAuOTU5MzI5LCJvIiwib2ZpbGUiXQpbOTEuMDMzNTQyLCJvIiwicyB1c2UiXQpbOTEuMTAyODg1LCJvIiwiciB6byJdCls5MS4xNzM5ODEsIm8iLCJyaWxsYSJdCls5MS4yMzM5MjIsIm8iLCJcclxuIl0KWzkyLjk5ODUyMiwibyIsIiAgKy0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tK1xyXG4gIHwgRmllbGQgICAgICAgIHwgVmFsdWUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiAgfCBpZCAgICAgICAgICAgfCBmZTJhMTQ4OS1lN2E2LTQyM2ItYWQ1MC0xNDUzMDQzODM2Y2MgfFxyXG4gIHwgc2hhcmVfaWQgICAgIHwgMDhhMjA3MGYtNmYxYy00OGQ0LTk1NzYtZWJjZGQ5NzZiZmVkIHxcclxuICB8IGFjY2Vzc19sZXZlbCB8IHJ3ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBhY2Nlc3NfdG8gICAgfCB6b3JpbGxhICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX3R5cGUgIHwgdXNlciAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHN0YXRlICAgICAgICB8IHF1ZXVlZF90b19hcHBseSAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBhY2Nlc3Nfa2V5ICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgY3JlYXRlZF9hdCAgIHwgMjAyNi0xMS0xNlQxNzo0MzowMy44Nzg2NjkgICAgICAgICAgIHxcclxuICB8IHVwZGF0ZWRfYXQgICB8IE5vbmUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBwcm9wZXJ0aWVzICAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gICstLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuIl0KWzk3LjU2MDA4NSwibyIsIlx1MDAxYlsxOzMybXN5c2FkbWluQHdpbi1jbGllbnRcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSRcdTAwMWJbMG0gIl0KWzk3LjYzMzIyNCwibyIsInNtYmNsIl0KWzk3LjcxMjc0OSwibyIsImllbnQgIl0KWzk3Ljg3MjQ3NSwibyIsIi8vMTkyLjE2OCJdCls5Ny45NTM1MjIsIm8iLCIuMTIyLjE0Il0KWzk4LjAzMzQ1MSwibyIsIjMvZmE3OCJdCls5OC4xMTMzOTcsIm8iLCI5NTY3LTgiXQpbOTguMTcyNjM2LCJvIiwiMzFlLSJdCls5OC4yNTMzOTMsIm8iLCI0OTExLSJdCls5OC4zMTM2MTksIm8iLCI5ZDBkLSJdCls5OC40MjMzODUsIm8iLCIwYTY1ZDNjIl0KWzk4LjQ4OTQyNywibyIsImE3ZjRhIl0KWzk4LjU1MDI2MywibyIsIiAtVSAiXQpbOTguNjI1NDMzLCJvIiwiem9yaWwiXQpbOTguNjg3OTUyLCJvIiwibGElZSJdCls5OC43NTgwODQsIm8iLCI3bGFuayJdCls5OC44MjMxNDcsIm8iLCI5aUltIl0KWzk4Ljg4NTMwOSwibyIsImVubV8iXQpbOTguOTYxNDM4LCJvIiwiQS1yUWVKIl0KWzk5LjAyODkyNywibyIsIkp3IC0iXQpbOTkuMDg3MDkyLCJvIiwiYyBscyJdCls5OS4xNDg4MDksIm8iLCJcclxuIl0KWzk5LjUyODA0NSwibyIsIiAgc2Vzc2lvbiBzZXR1cCBmYWlsZWQ6IE5UX1NUQVRVU19MT0dPTl9GQUlMVVJFXHJcbiJdClsxMDMuODM3MjI3LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdClsxMDMuOTMxNTQ4LCJvIiwib3BlbnN0Il0KWzEwMy45OTY5NzksIm8iLCJhY2sgc2giXQpbMTA0LjA4MzMzOSwibyIsImFyZSBhIl0KWzEwNC4xNTkwMTgsIm8iLCJjY2VzcyJdClsxMDQuMjQ1NjQ1LCJvIiwiIGRlbGV0Il0KWzEwNC4zMDE4ODksIm8iLCJlIGZzbCJdClsxMDQuMzczMTE4LCJvIiwib2dpeCJdClsxMDQuNDMzNTk1LCJvIiwiLXBybyJdClsxMDQuNTA4OTA5LCJvIiwiZmlsZSJdClsxMDQuNTg0Njc4LCJvIiwicyBmZTJhIl0KWzEwNC42NDU3MjQsIm8iLCIxNDg5LSJdClsxMDQuNzM4Nzc3LCJvIiwiZTdhNiJdClsxMDQuODE4NDYsIm8iLCItNDIzYi1hIl0KWzEwNC45MTM1MDEsIm8iLCJkNTAtMTQiXQpbMTA0Ljk4MjM5NywibyIsIjUzMDQzOCJdClsxMDUuMDQyNTk1LCJvIiwiMzZjYyJdClsxMDUuMzI0Mjc1LCJvIiwiXHJcbiJdClsxMDguODMyNDgxLCJvIiwiXHUwMDFiWzE7MzNtICAobG9naW5fY29udHJvbCBjaGFuZ2VzIHByb3BhZ2F0ZSB2aWEgY29uZmlnd2F0Y2ggaW4gdGVucyBvZiBzZWNvbmRzKVx1MDAxYlswbVxyXG4iXQpbMTk5Ljk5Mzk2NywibyIsIlx1MDAxYlsxOzMybXN5c2FkbWluQHdpbi1jbGllbnRcdTAwMWJbMG06XHUwMDFiWzE7MzRtflx1MDAxYlswbVx1MDAxYlsxbVx1MDAxYlsxOzM2bSRcdTAwMWJbMG0gIl0KWzIwMC4wNjI0MTEsIm8iLCJzbWJjbCJdClsyMDAuMTM2ODY4LCJvIiwiaWVudCAiXQpbMjAwLjI5MzczNSwibyIsIi8vMTkyLjE2OCJdClsyMDAuNDQ5NzIsIm8iLCIuMTIyLjE0My9mYTciXQpbMjAwLjUxOTAzNCwibyIsIjg5NTY3Il0KWzIwMC42Mjg3ODMsIm8iLCItODMxZS00Il0KWzIwMC43NDM2MjUsIm8iLCI5MTEtOWQwZCJdClsyMDAuODUxNjAyLCJvIiwiLTBhNjVkMyJdClsyMDAuOTUzODc3LCJvIiwiY2E3ZjRhICJdClsyMDEuMDMwODY3LCJvIiwiLVUgem8iXQpbMjAxLjEwMTk1MSwibyIsInJpbGxhIl0KWzIwMS4xODE0OTcsIm8iLCIlZTdsYSJdClsyMDEuMjYyNDE0LCJvIiwibms5aUltIl0KWzIwMS4zNDIxOTMsIm8iLCJlbm1fIl0KWzIwMS40MTAzNzEsIm8iLCJBLXJRZUoiXQpbMjAxLjQ2OTQsIm8iLCJKdyAtIl0KWzIwMS41ODE0OTEsIm8iLCJjIGxzXHJcbiJdClsyMDEuOTc4MDY4LCJvIiwiICBzZXNzaW9uIHNldHVwIGZhaWxlZDogTlRfU1RBVFVTX0xPR09OX0ZBSUxVUkVcclxuIl0KWzIwNC45ODcyMzUsIm8iLCJcclxuXHUwMDFiWzE7MzZtXHUwMDFiWzFtXHUyNTAxXHUyNTAxXHUyNTAxIHNuYXBzaG90cyBhcmUgQ2VwaEZTIHNuYXBzaG90cyBcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTI1MDFcdTAwMWJbMG1cclxuXHJcbiJdClsyMDUuODgwMDU0LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdClsyMDUuOTc1NDEyLCJvIiwib3BlbnN0Il0KWzIwNi4xNDgyMjQsIm8iLCJhY2sgc2hhcmUgc24iXQpbMjA2LjQwMTc2NywibyIsImFwc2hvdCBjcmUiXQpbMjA2LjUwOTM5MiwibyIsImF0ZSAtLW5hbWUgcHJlIl0KWzIwNi42MTY2MTgsIm8iLCItdXBncmFkIl0KWzIwNi42OTEwNzcsIm8iLCJlIGZzbG8iXQpbMjA2Ljc1MTYyLCJvIiwiZ2l4LSJdClsyMDYuODIxNTA1LCJvIiwicHJvZiJdClsyMDYuODgzOTA4LCJvIiwiaWxlcyJdClsyMDYuOTQwMzI4LCJvIiwiXHJcbiJdClsyMDkuMDUyMTM3LCJvIiwiICArLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuICB8IEZpZWxkICAgICAgIHwgVmFsdWUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuICB8IGlkICAgICAgICAgIHwgYzVjZDgzMWEtNzMyYy00YzI1LTkyNTgtZjg4MzEyNzBkZWZjIHxcclxuICB8IHNoYXJlX2lkICAgIHwgMDhhMjA3MGYtNmYxYy00OGQ0LTk1NzYtZWJjZGQ5NzZiZmVkIHxcclxuICB8IHNoYXJlX3NpemUgIHwgMTAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGNyZWF0ZWRfYXQgIHwgMjAyNi0xMS0xNlQxNzo0NDo1OS44Mjg4OTcgICAgICAgICAgIHxcclxuICB8IHN0YXR1cyAgICAgIHwgY3JlYXRpbmcgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IG5hbWUgICAgICAgIHwgcHJlLXVwZ3JhZGUgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGRlc2NyaXB0aW9uIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHNpemUgICAgICAgIHwgMTAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHNoYXJlX3Byb3RvIHwgQ0lGUyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IHVzZXJfaWQgICAgIHwgYjVmYzA3ZjcxMWJhNDEzOGE0MTA4ZjdlZmNmZWJhZjAgICAgIHxcclxuICB8IHByb2plY3RfaWQgIHwgODViODgwNDg4M2EyNDdiOTk2Mzc5MGI1ZDI3ZTk2MzEgICAgIHxcclxuICB8IG1ldGFkYXRhICAgIHwge30gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuIl0KWzIxMS41NjM3MiwibyIsIlx1MDAxYlsxOzMybXJvb3RAY2VwaC1ub2RlLTAxXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0jXHUwMDFiWzBtIGMiXQpbMjExLjY2NjUzOSwibyIsImVwaGFkbSJdClsyMTEuNzQwMzQyLCJvIiwiIHNoZWwiXQpbMjExLjc5NjcyMSwibyIsImwgLS0gIl0KWzIxMS44NDU4OTYsIm8iLCJjZXAiXQpbMjExLjkxNjQwOSwibyIsImggZnMgIl0KWzIxMi4xMjg0OTgsIm8iLCJzdWJ2b2x1bWUgc25hIl0KWzIxMi4yMzU4NTEsIm8iLCJwc2hvdCBscyJdClsyMTIuMzg0NDU3LCJvIiwiIGNlcGhmcyBmIl0KWzIxMi40NjUxMTgsIm8iLCJhNzg5NTYiXQpbMjEyLjU0ODUxNCwibyIsIjctODMxZSJdClsyMTIuNTk5OTcyLCJvIiwiLTQ5Il0KWzIxMi42NjA2NDcsIm8iLCIxMS05ZCJdClsyMTIuNzM2ODc2LCJvIiwiMGQtMCJdClsyMTIuNzg5NzU1LCJvIiwiYTY1ZCJdClsyMTIuODQ5OTEyLCJvIiwiM2NhNyJdClsyMTIuOTEwMTA5LCJvIiwiZjRhXHJcbiJdClsyMTQuNzU1MDY5LCJvIiwiICBbXHJcbiAgICAgIHtcclxuICAgICAgICAgIFwibmFtZVwiOiBcImM1Y2Q4MzFhLTczMmMtNGMyNS05MjU4LWY4ODMxMjcwZGVmY1wiXHJcbiAgICAgIH1cclxuICBdXHJcbiJdClsyMTcuMzQwNzk2LCJvIiwiXHJcblx1MDAxYlsxOzM2bVx1MDAxYlsxbVx1MjUwMVx1MjUwMVx1MjUwMSB0aGUgc2hhcnAgZWRnZTogaG93IGZhc3QgZG9lcyBhIHJldm9rZSB0YWtlIGVmZmVjdD8gXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUwMDFiWzBtXHJcblxyXG4iXQpbMjE4LjE2NjQ4LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdClsyMTguMjIxNjk5LCJvIiwib3BlbnMiXQpbMjE4LjI4NTk5LCJvIiwidGFjayJdClsyMTguMzQwODM4LCJvIiwiIHNoYSJdClsyMTguNDAyMzM5LCJvIiwicmUgYSJdClsyMTguNDU5MDY3LCJvIiwiY2NlcyJdClsyMTguNTMxMTEsIm8iLCJzIGNyIl0KWzIxOC41OTIyMDcsIm8iLCJlYXRlICJdClsyMTguNjUyMjY4LCJvIiwiZnNsbyJdClsyMTguNzE2NDY5LCJvIiwiZ2l4LSJdClsyMTguNzcyMDksIm8iLCJwcm9mIl0KWzIxOC44MzAzODYsIm8iLCJpbGVzIl0KWzIxOC44OTk4OTUsIm8iLCIgdXNlIl0KWzIxOC45NTkzOTIsIm8iLCJyIHpvIl0KWzIxOS4wMjA3OTksIm8iLCJyaWxsYSJdClsyMTkuMDgxOTk4LCJvIiwiXHJcbiJdClsyMjEuMDM2MDIsIm8iLCIgICstLS0tLS0tLS0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLStcclxuICB8IEZpZWxkICAgICAgICB8IFZhbHVlICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgKy0tLS0tLS0tLS0tLS0tKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tK1xyXG4gIHwgaWQgICAgICAgICAgIHwgYTZiODcxZmEtNjQ4ZS00MTBlLTkwYTEtYzMyZmEzYTllNzc0IHxcclxuICB8IHNoYXJlX2lkICAgICB8IDA4YTIwNzBmLTZmMWMtNDhkNC05NTc2LWViY2RkOTc2YmZlZCB8XHJcbiAgfCBhY2Nlc3NfbGV2ZWwgfCBydyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX3RvICAgIHwgem9yaWxsYSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGFjY2Vzc190eXBlICB8IHVzZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8XHJcbiAgfCBzdGF0ZSAgICAgICAgfCBxdWV1ZWRfdG9fYXBwbHkgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgYWNjZXNzX2tleSAgIHwgTm9uZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICB8IGNyZWF0ZWRfYXQgICB8IDIwMjYtMTEtMTZUMTc6NDU6MTEuNzUxNjUzICAgICAgICAgICB8XHJcbiAgfCB1cGRhdGVkX2F0ICAgfCBOb25lICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfFxyXG4gIHwgcHJvcGVydGllcyAgIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHxcclxuICArLS0tLS0tLS0tLS0tLS0rLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0rXHJcbiJdClsyMjUuNTAwNDA3LCJvIiwiXHUwMDFiWzE7MzNtICAod2FpdGluZyBmb3IgY29uZmlnd2F0Y2ggdG8gcHJvcGFnYXRlIHRoZSBncmFudClcdTAwMWJbMG1cclxuIl0KWzMxNi44MTE1ODYsIm8iLCJcdTAwMWJbMTszMm1zeXNhZG1pbkB3aW4tY2xpZW50XHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdClszMTYuODcxNTg2LCJvIiwic21iY2xpZW50IC8vMTkiXQpbMzE2LjkyMTk3MiwibyIsIjIuMSJdClszMTcuMDE4NDg0LCJvIiwiNjguMTIiXQpbMzE3LjA3ODE3NywibyIsIjIuMTQzLyJdClszMTcuMTM2NDE4LCJvIiwiZmE3OCJdClszMTcuMTk3MTksIm8iLCI5NTY3Il0KWzMxNy4yNjExMjksIm8iLCItODMxIl0KWzMxNy4zMzczMjksIm8iLCJlLTQ5MSJdClszMTcuMzkxNDE0LCJvIiwiMS05ZCJdClszMTcuNDU1ODkyLCJvIiwiMGQtMCJdClszMTcuNTExNDMxLCJvIiwiYTY1ZCJdClszMTcuNTY2MzgsIm8iLCIzY2E3Il0KWzMxNy42MzEzMjMsIm8iLCJmNGEgIl0KWzMxNy42OTEwNDEsIm8iLCItVSB6Il0KWzMxNy43NTAxMiwibyIsIm9yaWwiXQpbMzE3LjgxNjA5NCwibyIsImxhJWU3Il0KWzMxNy44NzExMzcsIm8iLCJsYW5rIl0KWzMxNy45MzA4MDEsIm8iLCI5aUltIl0KWzMxNy45ODE1NDksIm8iLCJlbm0iXQpbMzE4LjAzMjI1LCJvIiwiX0EtciJdClszMTguMDkwMjI1LCJvIiwiUWVKSiJdClszMTguMTQ5MTY5LCJvIiwidyAtIl0KWzMxOC4xOTY1NTQsIm8iLCJjIGxzIl0KWzMxOC4yNDU0OTIsIm8iLCIgICAiXQpbMzE4LjI5NTgyNywibyIsIiAjIGciXQpbMzE4LjM1MTIxOSwibyIsInJhbnQiXQpbMzE4LjQwMjEzMiwibyIsImVkICJdClszMTguNDUxMjMxLCJvIiwiYWdhaSJdClszMTguNTEwOTY4LCJvIiwiblxyXG4iXQpbMzE4LjkxODQ1MiwibyIsIiAgc2Vzc2lvbiBzZXR1cCBmYWlsZWQ6IE5UX1NUQVRVU19MT0dPTl9GQUlMVVJFXHJcbiJdClszMjMuMjIwODM0LCJvIiwiXHUwMDFiWzE7MzJtdmRpLWFkbWluQGNsb3VkXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0kXHUwMDFiWzBtICJdClszMjMuMjgxMjcyLCJvIiwib3BlbnMiXQpbMzIzLjM3MDM2MywibyIsInRhY2siXQpbMzIzLjQ3MTI1NCwibyIsIiBzaGFyZSJdClszMjMuNTMxNTQyLCJvIiwiIGFjY2VzIl0KWzMyMy41ODExNSwibyIsInMgZGUiXQpbMzIzLjY3NjI5MiwibyIsImxldGUiXQpbMzIzLjc2MTQzMiwibyIsIiBmc2xvZ2kiXQpbMzIzLjgyMTIzMywibyIsIngtcHJvIl0KWzMyMy44ODIyMiwibyIsImZpbGUiXQpbMzIzLjk0NDcwNSwibyIsInMgYTYiXQpbMzI0LjAwMDcwMywibyIsImI4NzEiXQpbMzI0LjA2MDgzOCwibyIsImZhLTYiXQpbMzI0LjEyMTE0OSwibyIsIjQ4ZS0iXQpbMzI0LjE4Mjc4LCJvIiwiNDEwZSJdClszMjQuMjQ5MTY3LCJvIiwiLTkwYTEiXQpbMzI0LjMyMTAwNSwibyIsIi1jMzIiXQpbMzI0LjM4NjAwMiwibyIsImZhM2E5Il0KWzMyNC40NDQwMTksIm8iLCJlNzc0Il0KWzMyNC41NDE3NzIsIm8iLCJcclxuIl0KWzMyOC4zMTExNTYsIm8iLCJcdTAwMWJbMTszM20gIChsb2dpbl9jb250cm9sIGNoYW5nZXMgcHJvcGFnYXRlIHZpYSBjZXBoYWRtJ3MgY29uZmlnd2F0Y2gsIGxpdmUsIG5vIHJlc3RhcnQpXHUwMDFiWzBtXHJcbiJdCls0MTkuNDU2MjU4LCJvIiwiXHUwMDFiWzE7MzJtc3lzYWRtaW5Ad2luLWNsaWVudFx1MDAxYlswbTpcdTAwMWJbMTszNG1+XHUwMDFiWzBtXHUwMDFiWzFtXHUwMDFiWzE7MzZtJFx1MDAxYlswbSAiXQpbNDE5LjUyMjI5MiwibyIsInNtYmNsIl0KWzQxOS41ODk2NTksIm8iLCJpZW50Il0KWzQyMC4wNDc3NDIsIm8iLCIgLy8xOTIiXQpbNDIwLjA0ODkzMiwibyIsIi4xNjguMTIyLjE0My9mYTciXQpbNDIwLjEwODAyMywibyIsIjg5NTY3LTgzMWUtNDkxMSJdCls0MjAuMTY4MzE3LCJvIiwiLTlkMCJdCls0MjAuMjMwNjIzLCJvIiwiZC0wYSJdCls0MjAuMjkzMzAyLCJvIiwiNjVkMyJdCls0MjAuMzYyODQ1LCJvIiwiY2E3ZiJdCls0MjAuNDUwMzY2LCJvIiwiNGEgLVUgIl0KWzQyMC41MTA2NjksIm8iLCJ6b3JpbCJdCls0MjAuNTg0NjgzLCJvIiwibGElZTciXQpbNDIwLjYzOTk0NCwibyIsImxhbmsiXQpbNDIwLjY5NjcwMywibyIsIjlpSW0iXQpbNDIwLjc0ODA4OSwibyIsImVubV8iXQpbNDIwLjgxMDkwOSwibyIsIkEtclEiXQpbNDIwLjg3MDg4NiwibyIsImVKSnciXQpbNDIwLjkzMzA3MiwibyIsIiAtYyAiXQpbNDIwLjk5MDE4NywibyIsImxzICAiXQpbNDIxLjA1NTU2NiwibyIsIiAgIyAiXQpbNDIxLjEzMzQ3OCwibyIsInJldm9rIl0KWzQyMS4xOTA0NzcsIm8iLCJlZC4uLiJdCls0MjEuMjUwMjkzLCJvIiwiIGRlbiJdCls0MjEuMzA5OTU1LCJvIiwiaWVkXHJcbiJdCls0MjEuNzM4MzA2LCJvIiwiICBzZXNzaW9uIHNldHVwIGZhaWxlZDogTlRfU1RBVFVTX0xPR09OX0ZBSUxVUkVcclxuIl0KWzQyNC43NDE0NDIsIm8iLCJcclxuXHUwMDFiWzE7MzZtXHUwMDFiWzFtXHUyNTAxXHUyNTAxXHUyNTAxIGV2ZXJ5dGhpbmcgbWFuaWxhIGJ1aWx0IGlzIHBsYWluIENlcGggXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUyNTAxXHUwMDFiWzBtXHJcblxyXG4iXQpbNDI1LjY0NjM1NiwibyIsIlx1MDAxYlsxOzMybXJvb3RAY2VwaC1ub2RlLTAxXHUwMDFiWzBtOlx1MDAxYlsxOzM0bX5cdTAwMWJbMG1cdTAwMWJbMW1cdTAwMWJbMTszNm0jXHUwMDFiWzBtIGMiXQpbNDI1Ljc0NTQ4MiwibyIsImVwaGFkbSJdCls0MjUuODkwMDksIm8iLCIgc2hlbGwgLS0gIl0KWzQyNS45NTU5MzUsIm8iLCJjZXBoIl0KWzQyNi4wMTU3ODcsIm8iLCIgc21iICJdCls0MjYuMDc1Mjg4LCJvIiwic2hvdyJdCls0MjYuMTMwOTAzLCJvIiwiIHwgcCJdCls0MjYuMTkwNTQ5LCJvIiwieXRobyJdCls0MjYuMjYzNTc4LCJvIiwibjMgLSJdCls0MjYuMzIxNjA4LCJvIiwibSBqc28iXQpbNDI2LjM4MTAyNiwibyIsIm4udG8iXQpbNDI2LjQzOTkyOCwibyIsIm9sICJdCls0MjYuNDk5MDA4LCJvIiwifCBncmUiXQpbNDI2LjU1OTMxOCwibyIsInAgLUUiXQpbNDI2LjYyODUwNSwibyIsIiAncmVzIl0KWzQyNi42OTEyNjUsIm8iLCJvdXJjIl0KWzQyNi43NDA2ODUsIm8iLCJlX3QiXQpbNDI2Ljc5OTA2OCwibyIsInlwZXwiXQpbNDI2Ljg1OTg3OSwibyIsInNoYXJlIl0KWzQyNi45MTA2MjcsIm8iLCJfaWQiXQpbNDI2Ljk4NTgxOCwibyIsInxyZXN0Il0KWzQyNy4wNDY0NDIsIm8iLCJyaWN0Il0KWzQyNy4xMTU2OSwibyIsIl9hY2NlIl0KWzQyNy4xNzg3NjksIm8iLCJzc3xsIl0KWzQyNy4yMzc5NjcsIm8iLCJvZ2luIl0KWzQyNy4zMDg1MDgsIm8iLCJfY29udCJdCls0MjcuMzk1NTA0LCJvIiwicm9sfG5hIl0KWzQyNy40NjUzMjEsIm8iLCJtZXxhIl0KWzQyNy41NzM2ODksIm8iLCJjY2VzcycgIl0KWzQyNy42OTUyMTYsIm8iLCJ8IGhlYWQgLTIiXQpbNDI3Ljc1OTE0NCwibyIsIjBcclxuIl0KWzQyOS41OTg0NzQsIm8iLCIgICAgICAgICAgICAgIFwicmVzb3VyY2VfdHlwZVwiOiBcImNlcGguc21iLmNsdXN0ZXJcIixcclxuICAgICAgICAgICAgICBcInJlc291cmNlX3R5cGVcIjogXCJjZXBoLnNtYi5zaGFyZVwiLFxyXG4gICAgICAgICAgICAgIFwic2hhcmVfaWRcIjogXCJtYW5pbGEtc2VydmljZVwiLFxyXG4gICAgICAgICAgICAgIFwibmFtZVwiOiBcIm1hbmlsYS1zZXJ2aWNlXCIsXHJcbiAgICAgICAgICAgICAgXCJyZXNvdXJjZV90eXBlXCI6IFwiY2VwaC5zbWIuc2hhcmVcIixcclxuICAgICAgICAgICAgICBcInNoYXJlX2lkXCI6IFwiZmE3ODk1Njc4MzFlNDkxMTlkXCIsXHJcbiAgICAgICAgICAgICAgXCJuYW1lXCI6IFwiZmE3ODk1NjctODMxZS00OTExLTlkMGQtMGE2NWQzY2E3ZjRhXCIsXHJcbiAgICAgICAgICAgICAgXCJsb2dpbl9jb250cm9sXCI6IFtcclxuICAgICAgICAgICAgICAgICAgICAgIFwibmFtZVwiOiBcImdvdXRoYW1yXCIsXHJcbiAgICAgICAgICAgICAgICAgICAgICBcImFjY2Vzc1wiOiBcInJlYWQtd3JpdGVcIlxyXG4gICAgICAgICAgICAgIFwicmVzdHJpY3RfYWNjZXNzXCI6IHRydWVcclxuICAgICAgICAgICAgICBcInJlc291cmNlX3R5cGVcIjogXCJjZXBoLnNtYi51c2Vyc2dyb3Vwc1wiLFxyXG4iXQpbNDMzLjYwOTU1NCwibyIsIlxyXG5cdTAwMWJbMTszMm1cdTAwMWJbMW0gIHJldmlldyAxMDE1Njk1IChkcml2ZXIpICB8ICByZXZpZXcgMTAxNTY5OCAoc3BlYykgIHwgIGJsdWVwcmludDogZXhwb3NpbmctY2VwaGZzLXZpYS1zYW1iYVx1MDAxYlswbVxyXG4iXQpbNDMzLjY4NDIzNSwibyIsIlxyXG4iXQo=' }, document.getElementById('player'), {
+      cols: 100, rows: 30, fit: 'both', fontSize: 'big',
+      autoPlay: true, idleTimeLimit: 2.5, theme: 'dracula'
+    });
+  }
+  function show(i) {
+    if (i < 0 || i >= total) return;
+    slides[cur].classList.remove('active'); cur = i;
+    const s = slides[cur]; s.classList.add('active');
+    progress.style.width = ((cur + 1) / total * 100) + '%';
+    counter.textContent = (cur + 1) + ' / ' + total;
+    if (location.hash !== '#' + (cur + 1)) location.hash = cur + 1;
+    const n = s.querySelector('.notes');
+    notesBody.innerHTML = n ? n.innerHTML : '';
+    if (s.id === 'demo-slide') buildPlayer();
+  }
+  document.addEventListener('keydown', (e) => {
+    const onDemo = slides[cur] && slides[cur].id === 'demo-slide';
+    // on the demo slide: space goes to the player (pause/resume),
+    // arrow keys always navigate slides — use the player's seek bar
+    // or 0-9 keys for seeking within the recording
+    if (onDemo && (e.key === ' ' || (e.key >= '0' && e.key <= '9'))) {
+      e.preventDefault(); // stop page scroll; let the player handle it
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0); else if (e.key === 'End') show(total - 1);
+    else if (e.key === 's' || e.key === 'S') notesEl.classList.toggle('show');
+    else if (e.key === 'f' || e.key === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#notes') || e.target.closest('#player')) return;
+    show(e.clientX < innerWidth / 2 ? cur - 1 : cur + 1);
+  });
+  window.addEventListener('hashchange', () => {
+    const h = parseInt((location.hash || '#1').slice(1), 10);
+    if (!isNaN(h) && h >= 1 && h <= total && h - 1 !== cur) show(h - 1);
+  });
+  const start = parseInt((location.hash || '#1').slice(1), 10);
+  show(isNaN(start) ? 0 : start - 1);
+})();
+</script>
+<a href="/talks/" style="position:fixed;bottom:14px;left:14px;z-index:9999;padding:6px 12px;border-radius:6px;background:rgba(0,0,0,0.06);color:inherit;text-decoration:none;font:13px/1.4 var(--sans, system-ui, sans-serif);opacity:0.75" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75">&#8592; All talks</a>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# Articles and blog posts authored by Goutham Pacha Ravi.
+# Rendered by layouts/writing/list.html.
+- title: "Closing the CephFS Trust Gap with virtiofs and Manila"
+  publication: "ADMIN Magazine"
+  date: 2026-07-01
+  url: "https://www.admin-it.io/closing-the-cephfs-trust-gap-w/"
+  note: "Feature article: hypervisor-mediated shared storage in OpenStack, eliminating the need to put tenants on the Ceph network."
+
+- title: "The Anti-Monopoly Architecture: Why Digital Sovereignty Depends on Invisible Labor"
+  publication: "Superuser (OpenInfra Foundation)"
+  date: 2026-04-09
+  url: "https://superuser.openinfra.org/articles/the-anti-monopoly-architecture-why-digital-sovereignty-depends-on-invisible-labor/"
+  note: "Essay on digital sovereignty and the invisible labor that keeps open infrastructure trustworthy."
+
+- title: "Code you can't see isn't trustworthy. Code you can't govern isn't sovereign."
+  publication: "We Love Open Source (All Things Open)"
+  date: 2026-06-01
+  url: "https://allthingsopen.org/articles/digital-sovereignty-open-source-governance-openstack"
+  note: "On open source governance as the foundation of digital sovereignty."
+
+- title: "OpenStack Hibiscus: What It Takes to Build a Release Together"
+  publication: "OpenInfra Foundation Blog"
+  date: 2026-09-30
+  url: "https://www.openstack.org/blog/openstack-hibiscus-what-it-takes-to-build-a-release-together/"
+  note: "Release announcement essay as TC Chair."
+
+- title: "April 2026 PTG Recap: The Road from Gazpacho to Hibiscus"
+  publication: "OpenInfra Foundation Blog"
+  date: 2026-04-01
+  url: "https://www.openstack.org/blog/april-2026-ptg-recap-the-road-from-gazpacho-to-hibiscus/"
+  note: "Project Team Gathering recap as TC Chair."
+
+- title: "New in OpenStack Bobcat: Manila Team Introduces Resource Lock Framework"
+  publication: "OpenInfra Foundation Blog"
+  date: 2023-10-01
+  url: "https://www.openstack.org/blog/new-in-openstack-bobcat-manila-team-introduces-resource-lock-framework/"
+  note: "Design walkthrough of Manila's resource lock framework."

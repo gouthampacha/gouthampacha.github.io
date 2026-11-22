@@ -1,0 +1,26 @@
+# Press coverage: articles about or quoting Goutham Pacha Ravi.
+# Rendered by layouts/press/list.html. Curated: strongest independent editorial only.
+- publication: "The Register"
+  title: "OpenStack in the pink with Flamingo release"
+  date: 2025-10-01
+  url: "https://www.theregister.com/2025/10/01/openstack_flamingo_release/"
+
+- publication: "The Stack"
+  title: "Can OpenStack really replace VMware?"
+  date: 2025-11-03
+  url: "https://www.thestack.technology/can-openstack-really-replace-vmware-in-organizations-that-still-need-to-run-their-own-virtualisation/"
+
+- publication: "The New Stack"
+  title: "OpenStack Flamingo Reduces Technical Debt, Boosts Performance"
+  date: 2025-10-01
+  url: "https://thenewstack.io/openstack-flamingo-reduces-technical-debt-boosts-performance/"
+
+- publication: "Yahoo Finance"
+  title: "OpenStack Deployments Grow as OpenInfra Community Marks 15 Years, Flamingo Release"
+  date: 2025-10-01
+  url: "https://finance.yahoo.com/news/openstack-deployments-grow-openinfra-community-150000835.html"
+
+- publication: "Deutschlandfunk (German public radio)"
+  title: "Auftrieb: OpenStack setzt VMware mit souveränen Konzepten unter Druck"
+  date: 2025-10-01
+  url: "https://www.deutschlandfunk.de/auftrieb-openstack-setzt-vmware-mit-souveraenen-konzepten-unter-druck-100.html"

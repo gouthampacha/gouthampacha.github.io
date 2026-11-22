@@ -1,0 +1,57 @@
+# Interviews, panels, and video appearances (non-conference).
+# Rendered by layouts/talks/list.html in the "Interviews & panels" section.
+- title: "Inside the VMT: Managing Security at Scale in OpenStack"
+  event: "OpenInfra Live"
+  date: 2026-11-05
+  speakers: ["Goutham Pacha Ravi", "Jay Faulkner", "Kendall Nelson", "Wes Wilson"]
+  type: "panel"
+  video: "https://www.youtube.com/watch?v=2ldksOBNI8k"
+  abstract: "Pulling back the curtain on OpenStack's Vulnerability Management Team: responsible disclosure, coordinating fixes across release branches, and how LLM-assisted bug discovery has shifted triage."
+
+- title: "OpenStack Hibiscus Unlocks Confidential Computing for AI Workloads"
+  event: "TFiR (Swapnil Bhartiya)"
+  date: 2026-10-26
+  speakers: ["Goutham Pacha Ravi"]
+  type: "interview"
+  video: "https://www.youtube.com/watch?v=SvfyIRHu3Sk"
+  abstract: "What trusted infrastructure for the AI era means in practice: confidential computing (AMD SEV-SNP, Intel TDX), high-performance storage for AI/HPC, and the security discipline underneath."
+
+- title: "OpenInfra Live: OpenStack 2026.2 Hibiscus"
+  event: "OpenInfra Live (release overview panel)"
+  date: 2026-10-02
+  speakers: ["Goutham Pacha Ravi", "Jay Faulkner", "Carlos Eduardo da Silva", "Doug Goldstein"]
+  type: "panel"
+  video: "https://www.youtube.com/watch?v=37p9C0n0LLw"
+  abstract: "Release overview panel on what's new in OpenStack Hibiscus: security, hardware enablement, and capabilities for the next generation of AI and cloud infrastructure."
+
+- title: "Introducing OpenStack 2026.1 Gazpacho"
+  event: "OpenInfra Live (release overview panel)"
+  date: 2026-04-03
+  speakers: ["Goutham Pacha Ravi"]
+  type: "panel"
+  video: "https://www.youtube.com/watch?v=YSrqj-pKBPo"
+  abstract: "Community leaders walk through the Gazpacho release."
+
+- title: "Introducing OpenStack 2025.2 Flamingo"
+  event: "OpenInfra Live (release overview panel)"
+  date: 2025-10-03
+  speakers: ["Goutham Pacha Ravi"]
+  type: "panel"
+  video: "https://www.youtube.com/watch?v=cdqL6umlM1w"
+  abstract: "The Flamingo release straight from the community leaders who built it."
+
+- title: "Introducing OpenStack 2025.1 Epoxy"
+  event: "OpenInfra Live (release overview panel)"
+  date: 2025-04-04
+  speakers: ["Goutham Pacha Ravi"]
+  type: "panel"
+  video: "https://www.youtube.com/watch?v=qX2-8oyFVPk"
+  abstract: "OpenStack's 31st release from the community leaders who helped build it."
+
+- title: "Manila Project Update"
+  event: "OpenInfra Live (virtual)"
+  date: 2020-12-01
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  video: "https://www.youtube.com/watch?v=D3NyRLbSnAw"
+  abstract: "Manila project update covering the state of shared filesystems in OpenStack."

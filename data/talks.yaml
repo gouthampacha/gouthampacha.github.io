@@ -1,0 +1,181 @@
+# Conference talks, 2016-2026.
+# Rendered by layouts/talks/list.html. Add a talk by appending an entry here.
+# Keep facts consistent with public records (event schedule pages, YouTube).
+- title: "The Blue Screen of Ceph: An SMB Experiment in OpenStack Manila"
+  event: "Ceph Days Chicago 2026"
+  location: "Chicago, IL"
+  date: 2026-11-17
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://ceph.io/en/community/events/2026/ceph-days-chicago/"
+  slides: "/decks/blue-screen-of-ceph/"
+  abstract: "Whether Ceph Tentacle's integrated SMB manager and OpenStack Manila's CephFS driver can form a secure, recoverable CIFS/SMB backend: reconciling three independent control planes without exposing data or creating unrecoverable drift. An architectural experiment, presented with its sharp edges intact."
+
+- title: "Supercomputing on Demand"
+  event: "OpenInfra Days North America 2026"
+  location: "Chicago, IL"
+  date: 2026-11-17
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://openinfra.org/days/northamerica/"
+  slides: "/decks/supercomputing-on-demand/"
+  abstract: "Lustre, the filesystem behind national labs, as a self-service cloud primitive through Manila: quotas, access rules, and lifecycle management that HPC sites otherwise build by hand. With a live demo of an AI training run against the Lustre driver."
+
+- title: "Closing the CephFS Trust Gap"
+  event: "OpenInfra Days North America 2026"
+  location: "Chicago, IL"
+  date: 2026-11-17
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://openinfra.org/days/northamerica/"
+  slides: "/decks/closing-the-cephfs-trust-gap/"
+  abstract: "virtiofs moves the trust boundary to the hypervisor: the guest gets no storage credentials or Ceph access, while the compute host mounts the share and passes it to the VM over virtqueues. The Manila and Nova integration, its Epoxy-release constraints, and four specs targeting the gaps."
+
+- title: "CephFS and OpenStack Manila: File Sharing Without the Headaches (Mostly!)"
+  event: "SCALE 22x (Southern California Linux Expo)"
+  location: "Pasadena, CA"
+  date: 2025-03-06
+  speakers: ["Goutham Pacha Ravi", "Carlos Eduardo da Silva", "Ashley Rodriguez"]
+  type: "talk"
+  url: "https://www.socallinuxexpo.org/scale/22x/presentations/cephfs-and-openstack-manila-file-sharing-without-headaches-mostly/index.html"
+  abstract: "CephFS integration with OpenStack Manila for cloud file sharing: CephFS Native (performance) vs CephFS NFS (compatibility), plus upcoming SMB/CIFS and VirtIOFS support."
+
+- title: "From Zero to Code: A Hands-On Guide to Making Your First OpenStack Code Contribution"
+  event: "SCALE 22x (Southern California Linux Expo)"
+  location: "Pasadena, CA"
+  date: 2025-03-07
+  speakers: ["Goutham Pacha Ravi", "Carlos Eduardo da Silva", "Ashley Rodriguez"]
+  type: "workshop"
+  url: "https://www.socallinuxexpo.org/scale/22x/presentations/zero-code-hands-guide-making-your-first-openstack-code-contribution/index.html"
+  abstract: "Hands-on workshop: identifying bugs and features, contributor accounts, developing and testing changes, and submitting code for review in OpenStack."
+
+- title: "How Highly Available CephFS NFS Unlocks a Great Promise with OpenStack Manila"
+  event: "OpenInfra Days North America 2024"
+  location: "Indiana University, Indianapolis"
+  date: 2024-10-16
+  speakers: ["Goutham Pacha Ravi", "Carlos Eduardo da Silva"]
+  type: "talk"
+  url: "https://oidiu2024.sched.com/event/1jZ8x/how-highly-available-cephfs-nfs-unlocks-a-great-promise-with-openstack-manila"
+  video: "https://www.youtube.com/watch?v=PnG5dGPcmIE"
+  abstract: "A collaborative solution between the OpenStack and Ceph communities for highly available CephFS NFS tailored for Manila: architecture, deployment strategies, and best practices from small scale to enterprise."
+
+- title: "From Zero to Code: A Hands-On Guide to Making Your First OpenStack Code Contribution"
+  event: "OpenInfra Days North America 2024"
+  location: "Indiana University, Indianapolis"
+  date: 2024-10-15
+  speakers: ["Goutham Pacha Ravi", "Carlos Eduardo da Silva"]
+  type: "workshop"
+  url: "https://oidiu2024.sched.com/event/1fH6M/from-zero-to-code-a-hands-on-guide-to-making-your-first-openstack-code-contribution"
+  video: "https://www.youtube.com/watch?v=m11Yggsn9AI"
+  abstract: "Workshop on OpenStack development fundamentals: development environments, navigating the codebase, making changes with DevStack, and submitting patches via Gerrit."
+
+- title: "Operational Concerns with OpenStack Manila: High Availability"
+  event: "OpenInfra Summit Vancouver 2023"
+  location: "Vancouver, Canada"
+  date: 2023-06-14
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://vancouver2023.openinfra.dev/a/schedule"
+  abstract: "Operational best practices and architectural patterns for deploying OpenStack Manila in highly available configurations."
+
+- title: "Multi-tenancy with Manila: Building Trust Where There May Be None"
+  event: "OpenInfra Summit Vancouver 2023"
+  location: "Vancouver, Canada"
+  date: 2023-06-13
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  video: "https://www.youtube.com/watch?v=n6iZhbPPsRk"
+  abstract: "Multi-tenancy challenges and trust models in OpenStack Manila's shared file system service."
+
+- title: "Your ReadWriteMany (RWX) Storage in k8s with Manila CSI"
+  event: "OpenInfra Summit Berlin 2022"
+  location: "Berlin, Germany"
+  date: 2022-06-30
+  speakers: ["Goutham Pacha Ravi", "Victoria Martinez de la Cruz", "Christian Schwede"]
+  type: "talk"
+  url: "https://www.openstack.org/videos/summits/berlin-2022/Your-ReadWriteMany-RWX-Storage-in-k8s-with-Manila-CSI"
+  video: "https://www.youtube.com/watch?v=WSMZDKx4JAI"
+  abstract: "Shared storage in Kubernetes clusters using the Manila Container Storage Interface for ReadWriteMany persistent volumes with simultaneous multi-pod access."
+
+- title: "Natively Scalable CephFS NFS Gateways with OpenStack Manila"
+  event: "Ceph Days"
+  date: 2021-01-01
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  video: "https://www.youtube.com/watch?v=gjAI7lE9_zo"
+  abstract: "Natively scalable NFS gateway architecture for CephFS integrated with OpenStack Manila."
+
+- title: "Easy Multi-tenant Kubernetes RWX Storage with Cloud Provider OpenStack and Manila CSI"
+  event: "Open Infrastructure Summit Shanghai 2019"
+  location: "Shanghai, China"
+  date: 2019-11-01
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://www.openstack.org/videos/summits/shanghai-2019/easy-multi-tenant-kubernetes-rwx-storage-with-cloud-provider-openstack-and-manila-csi"
+  abstract: "Multi-tenant ReadWriteMany storage provisioning in Kubernetes using Cloud Provider OpenStack and the Manila CSI plugin."
+
+- title: "Manila Project Update"
+  event: "Open Infrastructure Summit Denver 2019"
+  location: "Denver, CO"
+  date: 2019-04-29
+  speakers: ["Goutham Pacha Ravi", "Tom Barron"]
+  type: "talk"
+  url: "https://www.openstack.org/summit/denver-2019/summit-schedule/events/23616/manila-project-update"
+  abstract: "Latest changes in Manila, new features in the latest OpenStack release, and the roadmap ahead."
+
+- title: "Manila Project Onboarding"
+  event: "Open Infrastructure Summit Denver 2019"
+  location: "Denver, CO"
+  date: 2019-04-29
+  speakers: ["Goutham Pacha Ravi", "Tom Barron"]
+  type: "forum"
+  url: "https://www.openstack.org/summit/denver-2019/summit-schedule/events/23618/manila-project-onboarding"
+  abstract: "Onboarding for new contributors: Manila's code structure and architecture, and where to start contributing."
+
+- title: "Shared Storage for Container Orchestrators with Manila"
+  event: "Open Infrastructure Summit Denver 2019"
+  location: "Denver, CO"
+  date: 2019-05-01
+  speakers: ["Goutham Pacha Ravi", "Tom Barron", "Victoria Martinez de la Cruz"]
+  type: "talk"
+  url: "https://www.openstack.org/summit/denver-2019/summit-schedule/events/23513/shared-storage-for-container-orchestrators-with-manila"
+  video: "https://www.youtube.com/watch?v=8bdRqm-Zxj4"
+  abstract: "Manila as ReadWriteMany storage for Kubernetes, Cloud Foundry, and Mesos through the Container Storage Interface: Manila CSI plugin plans with NFS and CephFS native protocols."
+
+- title: "Manila Project Onboarding"
+  event: "OpenStack Summit Sydney 2017"
+  location: "Sydney, Australia"
+  date: 2017-11-07
+  speakers: ["Goutham Pacha Ravi"]
+  type: "forum"
+  url: "https://www.openstack.org/summit/sydney-2017/summit-schedule/events/20557/manila-project-onboarding"
+  abstract: "Classroom-style session for new contributors on Manila's code structure, architecture, and contribution opportunities."
+
+- title: "Manila Project Update"
+  event: "OpenStack Summit Sydney 2017"
+  location: "Sydney, Australia"
+  date: 2017-11-08
+  speakers: ["Goutham Pacha Ravi"]
+  type: "talk"
+  url: "https://www.openstack.org/summit/sydney-2017/summit-schedule/events/19971/manila-project-update"
+  abstract: "New Manila capabilities: optimized migration with snapshots, snapshot reversion, mountable snapshots, share groups, HA improvements, IPv6 support, and enhanced concurrency."
+
+- title: "What the Heck Are DHSS Driver Modes in OpenStack Manila?"
+  event: "OpenStack Summit Sydney 2017"
+  location: "Sydney, Australia"
+  date: 2017-11-08
+  speakers: ["Goutham Pacha Ravi", "Rodrigo Barbieri", "Victoria Martinez de la Cruz"]
+  type: "talk"
+  url: "https://www.openstack.org/summit/sydney-2017/summit-schedule/events/19545/what-the-heck-are-dhss-driver-modes-in-openstack-manila"
+  video: "https://www.youtube.com/watch?v=eBcmHMKZG9A"
+  abstract: "Manila's driver_handles_share_servers configuration: driver mode distinctions, network isolation strategies, mode-specific features, and backend configuration."
+
+- title: "Manila Share Data Does Not Simply Move and Protect Itself, Oh Wait, It Does!"
+  event: "OpenStack Summit Barcelona 2016"
+  location: "Barcelona, Spain"
+  date: 2016-10-27
+  speakers: ["Goutham Pacha Ravi", "Rodrigo Barbieri"]
+  type: "talk"
+  url: "https://www.openstack.org/summit/barcelona-2016/summit-schedule/events/16280/manila-share-data-does-not-simply-move-and-protect-itself-oh-wait-it-does"
+  video: "https://www.youtube.com/watch?v=4lPNfhfvpbw"
+  abstract: "Manila's unified APIs for migration, replication, and data plane operations across heterogeneous storage vendors: storage availability zones, best practices, troubleshooting, and roadmap."

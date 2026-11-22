@@ -1,0 +1,14 @@
+# Homepage highlight cards, rendered by layouts/_partials/home/hero.html.
+# Use `url` for a single proof link, or `urls` for multiple sources.
+- title: "Chair, OpenStack Technical Committee"
+  url: "https://governance.openstack.org/tc/"
+- title: "Storage engineer, OpenStack Manila"
+  url: "https://docs.openstack.org/manila/latest/"
+- title: "OpenStack Vulnerability Management Team"
+  url: "https://security.openstack.org/"
+- title: "Core reviewer, OpenStack and Kubernetes"
+  urls:
+    - label: "OpenStack"
+      url: "https://review.opendev.org/q/owner:gouthamr"
+    - label: "Kubernetes"
+      url: "https://github.com/kubernetes/cloud-provider-openstack"

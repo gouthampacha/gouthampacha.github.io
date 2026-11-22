@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PRESENTER — Closing the CephFS Trust Gap</title>
+<style>
+  :root {
+    --bg: #0b0f14; --bg2: #10161d; --ink: #e6edf3; --dim: #8b98a5;
+    --accent: #22d3ee; --warn: #fbbf24; --line: #263041;
+    --font: -apple-system, "Segoe UI", "Inter", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; }
+
+  #layout { display: flex; height: 100%; }
+
+  /* left: slide preview */
+  #previewcol { width: 46%; padding: 16px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--line); }
+  #previewbox { flex: 1; position: relative; background: #05080c; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  #deckframe { position: absolute; top: 0; left: 0; width: 1600px; height: 900px; border: 0; transform-origin: 0 0; background: var(--bg); }
+  .lbl { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+
+  #nextbox { height: 15%; position: relative; background: #05080c; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  #nextframe { position: absolute; top: 0; left: 0; width: 1600px; height: 900px; border: 0; transform-origin: 0 0; background: var(--bg); }
+
+  /* right: notes + controls */
+  #notecol { flex: 1; display: flex; flex-direction: column; padding: 16px 20px; gap: 12px; min-width: 0; }
+  #status { display: flex; align-items: baseline; gap: 18px; }
+  #slideNum { font-size: 26px; font-weight: 750; }
+  #slideTitle { font-size: 15px; color: var(--dim); }
+  #timer { margin-left: auto; font-family: var(--mono); font-size: 26px; color: var(--accent); }
+  #timer.warn { color: var(--warn); }
+  #timerBtns { margin-left: 12px; display: flex; gap: 6px; }
+  #timerBtns button { background: var(--bg2); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+  #timerBtns button:hover { border-color: var(--accent); color: var(--accent); }
+
+  #noteswrap { flex: 1; overflow-y: auto; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; line-height: 1.65; font-size: 17px; color: #c9d4de; }
+  #noteswrap em { color: var(--warn); }
+  #noteswrap b { color: #fff; }
+  #noteswrap .nlabel { color: var(--accent); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px; }
+  #noteswrap::-webkit-scrollbar { width: 8px; } #noteswrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+  #controls { display: flex; gap: 8px; }
+  #controls button { flex: 1; background: var(--bg2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 14px 0; font-size: 17px; cursor: pointer; }
+  #controls button:hover { border-color: var(--accent); color: var(--accent); }
+  #controls .primary { background: rgba(34,211,238,.12); border-color: var(--accent2); color: var(--accent); font-weight: 700; }
+
+  #hint { font-size: 12px; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+<div id="layout">
+  <div id="previewcol">
+    <div class="lbl">On projector (current)</div>
+    <div id="previewbox"><iframe id="deckframe" src="index.html" title="current slide"></iframe></div>
+    <div class="lbl">Next up</div>
+    <div id="nextframeWrap" id-next="nextbox"><div id="nextbox"><iframe id="nextframe" src="index.html#2" title="next slide"></iframe></div></div>
+  </div>
+  <div id="notecol">
+    <div id="status">
+      <span id="slideNum">1 / 25</span>
+      <span id="slideTitle"></span>
+      <span id="timer">00:00</span>
+      <span id="timerBtns"><button id="tReset" title="reset timer">⟲</button><button id="tToggle" title="pause/resume">⏸</button></span>
+    </div>
+    <div id="noteswrap"><div class="nlabel">Speaker notes</div><div id="notesbody">Loading…</div></div>
+    <div id="controls">
+      <button id="prev">◀ Prev</button>
+      <button id="next" class="primary">Next ▶</button>
+      <button id="black" title="blank the projector window">Blank projector</button>
+    </div>
+    <div id="hint">Put THIS window on your laptop screen · put the deck window (it opens focused on “Next”) on the projector &amp; press F for fullscreen there. Navigate from either window — they stay in sync. Keys here: ← → space · T pause timer</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const deck = document.getElementById('deckframe');
+  const next = document.getElementById('nextframe');
+  const notesBody = document.getElementById('notesbody');
+  const slideNum = document.getElementById('slideNum');
+  const slideTitle = document.getElementById('slideTitle');
+  const timerEl = document.getElementById('timer');
+
+  const TALK_MIN = 40;
+  let cur = 0, total = 1;
+
+  function scaleFrames() {
+    for (const [frame, boxId] of [[deck, 'previewbox'], [next, 'nextbox']]) {
+      const box = document.getElementById(boxId);
+      const r = box.getBoundingClientRect();
+      frame.style.transform = `scale(${r.width / 1600})`;
+    }
+  }
+  window.addEventListener('resize', scaleFrames);
+
+  function slideEls(doc) { return Array.from(doc.querySelectorAll('.slide')); }
+
+  function refresh() {
+    try {
+      const doc = deck.contentDocument;
+      const n = parseInt((deck.contentWindow.location.hash || '#1').slice(1), 10) || 1;
+      const slides = slideEls(doc);
+      total = slides.length;
+      if (n - 1 !== cur || slideNum.textContent.startsWith('Load')) {
+        cur = n - 1;
+        const s = slides[cur];
+        const h2 = s ? (s.querySelector('h2') || s.querySelector('h1')) : null;
+        slideNum.textContent = (cur + 1) + ' / ' + total;
+        slideTitle.textContent = h2 ? h2.textContent.replace(/\s+/g, ' ').slice(0, 70) : '';
+        const aside = s ? s.querySelector('.notes') : null;
+        notesBody.innerHTML = aside ? aside.innerHTML : '<i>(no notes)</i>';
+        notesBody.parentElement.scrollTop = 0;
+        next.contentWindow.location.replace('index.html#' + Math.min(cur + 2, total));
+        // cue timing
+        const frac = (cur + 1) / total;
+        timerEl.classList.toggle('warn', elapsed / 60000 > TALK_MIN * frac + 2);
+      }
+    } catch (e) { /* cross-origin hiccup while loading; next poll wins */ }
+  }
+
+  const channel = ('BroadcastChannel' in window) ? new BroadcastChannel('virtiofs-deck') : null;
+  function nav(delta) {
+    if (channel) channel.postMessage({ nav: delta });
+  }
+  // keyboard here drives the deck
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nav(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); nav(-1); }
+    else if (e.key === 't' || e.key === 'T') toggleTimer();
+  });
+  document.getElementById('next').onclick = () => nav(1);
+  document.getElementById('prev').onclick = () => nav(-1);
+  document.getElementById('black').onclick = () => {
+    if (channel) channel.postMessage({ blank: true });
+  };
+
+  // timer
+  let start = Date.now(), elapsed = 0, paused = false;
+  function toggleTimer() { paused = !paused; document.getElementById('tToggle').textContent = paused ? '▶' : '⏸'; if (!paused) start = Date.now() - elapsed; }
+  document.getElementById('tToggle').onclick = toggleTimer;
+  document.getElementById('tReset').onclick = () => { elapsed = 0; start = Date.now(); timerEl.classList.remove('warn'); };
+  setInterval(() => {
+    if (!paused) elapsed = Date.now() - start;
+    const m = String(Math.floor(elapsed / 60000)).padStart(2, '0');
+    const s = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
+    timerEl.textContent = m + ':' + s;
+  }, 500);
+
+  deck.addEventListener('load', () => { scaleFrames(); setInterval(refresh, 400); refresh(); });
+  scaleFrames();
+})();
+</script>
+<a href="/talks/" style="position:fixed;bottom:14px;left:14px;z-index:9999;padding:6px 12px;border-radius:6px;background:rgba(0,0,0,0.06);color:inherit;text-decoration:none;font:13px/1.4 var(--sans, system-ui, sans-serif);opacity:0.75" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75">&#8592; All talks</a>
+</body>
+</html>

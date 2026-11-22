@@ -1,0 +1,51 @@
+{{/* Talks section: renders data/talks.yaml as a card grid grouped by year. */}}
+{{ define "main" }}
+  <header>
+    {{ if .Params.showBreadcrumbs | default (.Site.Params.list.showBreadcrumbs | default false) }}
+      {{ partial "breadcrumbs.html" . }}
+    {{ end }}
+    <h1 class="mt-0 text-4xl font-extrabold text-neutral-900 dark:text-neutral">{{ .Title }}</h1>
+  </header>
+  <section class="prose mt-0 flex max-w-full flex-col dark:prose-invert">
+    <div class="min-h-0 min-w-0 max-w-prose grow">
+      {{ .Content | emojify }}
+    </div>
+  </section>
+  <section class="not-prose mt-4">
+    <h2 class="gpr-talks-year mt-0">Conference talks</h2>
+    {{ $talks := sort site.Data.talks "date" "desc" }}
+    {{ $prevYear := "" }}
+    {{ range $talks }}
+      {{ $year := (time .date).Format "2006" }}
+      {{ if ne $year $prevYear }}
+        {{ if ne $prevYear "" }}</div>{{ end }}
+        <h2 class="gpr-talks-year">{{ $year }}</h2>
+        <div class="gpr-talks-grid">
+        {{ $prevYear = $year }}
+      {{ end }}
+          <div class="gpr-talk">
+            <div class="gpr-talk-title">
+              {{ $talk := . }}
+              {{ with .url }}
+                <a href="{{ . }}" rel="noopener">{{ $talk.title }}</a>
+              {{ else }}
+                {{ .title }}
+              {{ end }}
+            </div>
+            <div class="gpr-talk-meta">
+              <span class="gpr-tag">{{ .type | default "talk" }}</span>
+              {{ .event }}{{ with .location }} · {{ . }}{{ end }}
+            </div>
+            {{ with .abstract }}
+              <p class="gpr-talk-abstract">{{ . }}</p>
+            {{ end }}
+            <div class="gpr-talk-links">
+              {{ with .url }}<a href="{{ . }}" rel="noopener">Event</a>{{ end }}
+              {{ with .video }}<a href="{{ . }}" rel="noopener">Video</a>{{ end }}
+              {{ with .slides }}<a href="{{ . }}" rel="noopener">Slides</a>{{ end }}
+            </div>
+          </div>
+        {{ end }}
+      </div>
+  </section>
+{{ end }}
