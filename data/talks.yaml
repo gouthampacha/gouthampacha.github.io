@@ -9,6 +9,7 @@
   type: "talk"
   url: "https://ceph.io/en/community/events/2026/ceph-days-chicago/"
   slides: "/decks/blue-screen-of-ceph/"
+  pdf: "/decks/blue-screen-of-ceph/deck.pdf"
   abstract: "Whether Ceph Tentacle's integrated SMB manager and OpenStack Manila's CephFS driver can form a secure, recoverable CIFS/SMB backend: reconciling three independent control planes without exposing data or creating unrecoverable drift. An architectural experiment, presented with its sharp edges intact."
 
 - title: "Supercomputing on Demand"
@@ -19,6 +20,7 @@
   type: "talk"
   url: "https://openinfra.org/days/northamerica/"
   slides: "/decks/supercomputing-on-demand/"
+  pdf: "/decks/supercomputing-on-demand/deck.pdf"
   abstract: "Lustre, the filesystem behind national labs, as a self-service cloud primitive through Manila: quotas, access rules, and lifecycle management that HPC sites otherwise build by hand. With a live demo of an AI training run against the Lustre driver."
 
 - title: "Closing the CephFS Trust Gap"
@@ -29,6 +31,7 @@
   type: "talk"
   url: "https://openinfra.org/days/northamerica/"
   slides: "/decks/closing-the-cephfs-trust-gap/"
+  pdf: "/decks/closing-the-cephfs-trust-gap/deck.pdf"
   abstract: "virtiofs moves the trust boundary to the hypervisor: the guest gets no storage credentials or Ceph access, while the compute host mounts the share and passes it to the VM over virtqueues. The Manila and Nova integration, its Epoxy-release constraints, and four specs targeting the gaps."
 
 - title: "CephFS and OpenStack Manila: File Sharing Without the Headaches (Mostly!)"

@@ -43,6 +43,7 @@
               {{ with .url }}<a href="{{ . }}" rel="noopener">Event</a>{{ end }}
               {{ with .video }}<a href="{{ . }}" rel="noopener">Video</a>{{ end }}
               {{ with .slides }}<a href="{{ . }}" rel="noopener">Slides</a>{{ end }}
+              {{ with .pdf }}<a href="{{ . }}" download>PDF</a>{{ end }}
             </div>
           </div>
         {{ end }}
